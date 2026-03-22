@@ -1,0 +1,1777 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>カイ AI v6</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+:root{
+  --bg:#070910;--s1:#0b0d18;--s2:#10131e;--s3:#151929;
+  --bd:#1b2236;--bd2:#212d45;
+  --blue:#4f8ef7;--green:#1ed98a;--pink:#f74e7d;
+  --yellow:#f5c031;--purple:#9b7cf8;--orange:#f97316;
+  --text:#bfcfe8;--dim:#3a506a;--dim2:#5a7090;
+  --mono:'JetBrains Mono',monospace;--sans:'Noto Sans JP',sans-serif;
+  --r:9px;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);display:flex;flex-direction:column}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(79,142,247,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(79,142,247,.02) 1px,transparent 1px);background-size:42px 42px}
+
+/* ── HEADER ── */
+#hdr{display:flex;align-items:center;gap:10px;padding:9px 15px;background:rgba(11,13,24,.98);border-bottom:1px solid var(--bd);flex-shrink:0;z-index:50;backdrop-filter:blur(12px)}
+.logo{font-family:var(--mono);font-size:16px;font-weight:700;letter-spacing:3px;background:linear-gradient(90deg,var(--blue),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.ver{font-family:var(--mono);font-size:9px;color:var(--dim2);border:1px solid var(--bd);padding:2px 6px;border-radius:20px;letter-spacing:1px}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 7px var(--green);animation:pu 2s ease-in-out infinite;flex-shrink:0}
+@keyframes pu{0%,100%{opacity:1}50%{opacity:.2}}
+#mode-chip{font-family:var(--mono);font-size:9px;padding:2px 9px;border-radius:20px;border:1px solid var(--bd);color:var(--dim2);letter-spacing:1px;transition:all .3s}
+#mode-chip.active{color:var(--yellow);border-color:var(--yellow);background:rgba(245,192,49,.07)}
+#mode-chip.skill{color:var(--purple);border-color:var(--purple);background:rgba(155,124,248,.07)}
+.hbtns{display:flex;gap:6px;margin-left:auto}
+.hbtn{padding:5px 11px;border:1px solid var(--bd);border-radius:6px;background:transparent;color:var(--dim2);font-size:11px;font-family:var(--sans);cursor:pointer;transition:all .2s;letter-spacing:.3px}
+.hbtn:hover{border-color:var(--blue);color:var(--blue)}
+.hbtn.skill-btn:hover{border-color:var(--purple);color:var(--purple)}
+
+/* ── LAYOUT ── */
+#main{display:flex;flex:1;overflow:hidden}
+
+/* ── SIDEBAR ── */
+#sidebar{width:240px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--bd);display:flex;flex-direction:column;transition:width .25s,opacity .25s;overflow:hidden}
+#sidebar.closed{width:0;opacity:0}
+.stabs{display:flex;border-bottom:1px solid var(--bd);flex-shrink:0}
+.stab{flex:1;padding:8px 2px;border:none;background:none;font-size:10px;font-family:var(--sans);letter-spacing:.5px;text-transform:uppercase;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.stab:hover{color:var(--text)}
+.stab.on{color:var(--blue);border-bottom-color:var(--blue)}
+.spanel{display:none;flex:1;overflow-y:auto;padding:10px;flex-direction:column;gap:7px;scrollbar-width:thin;scrollbar-color:var(--bd) transparent}
+.spanel.on{display:flex}
+
+/* sidebar cards */
+.scard{padding:9px 11px;border-radius:7px;border:1px solid var(--bd);background:var(--s2);cursor:pointer;transition:all .2s}
+.scard:hover{border-color:var(--blue);background:rgba(79,142,247,.05)}
+.sc-n{font-size:12px;font-weight:500;margin-bottom:2px}
+.sc-l{font-family:var(--mono);font-size:9px;color:var(--blue);letter-spacing:1px}
+.sc-k{font-size:10px;color:var(--dim);margin-top:2px}
+.sc-s{font-size:10px;color:var(--yellow);margin-top:3px}
+.sc-del{float:right;background:none;border:none;color:var(--dim);cursor:pointer;font-size:13px}
+.sc-del:hover{color:var(--pink)}
+.s-empty{color:var(--dim);font-size:11px;text-align:center;padding:20px 0;line-height:1.8}
+
+/* ── SKILL CARDS in sidebar ── */
+.skill-card{padding:10px 12px;border-radius:8px;border:1px solid var(--bd);background:var(--s2);transition:all .2s}
+.skill-card.enabled{border-color:rgba(79,142,247,.3);background:rgba(79,142,247,.04)}
+.sk-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.sk-icon{font-size:16px;flex-shrink:0}
+.sk-name{font-size:12px;font-weight:600;flex:1}
+.sk-toggle{
+  width:32px;height:18px;border-radius:99px;border:none;cursor:pointer;
+  background:var(--bd2);position:relative;transition:background .2s;flex-shrink:0;
+}
+.sk-toggle::after{content:'';position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:#fff;transition:transform .2s}
+.sk-toggle.on{background:var(--blue)}
+.sk-toggle.on::after{transform:translateX(14px)}
+.sk-desc{font-size:10px;color:var(--dim);line-height:1.5}
+.sk-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.sk-tag{font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:3px;background:rgba(155,124,248,.12);color:var(--purple);border:1px solid rgba(155,124,248,.2)}
+.sk-source{font-size:9px;color:var(--dim);margin-top:4px;font-family:var(--mono)}
+
+/* gh import */
+.gh-import-box{padding:10px;border-radius:7px;border:1px dashed var(--bd2);background:var(--s3)}
+.gh-import-box label{font-size:10px;color:var(--dim2);display:block;margin-bottom:5px;letter-spacing:.5px;text-transform:uppercase}
+.gh-import-box input{width:100%;padding:7px 10px;background:var(--s2);border:1px solid var(--bd);border-radius:6px;color:var(--text);font-size:11px;font-family:var(--mono);outline:none;transition:border .2s;margin-bottom:6px}
+.gh-import-box input:focus{border-color:var(--green)}
+.gh-import-btn{width:100%;padding:7px;border-radius:6px;border:none;background:var(--green);color:#000;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--sans);transition:all .2s}
+.gh-import-btn:hover{filter:brightness(1.1)}
+#import-status{font-size:10px;margin-top:5px;min-height:14px;font-family:var(--mono)}
+
+/* ── CHAT ── */
+#chat-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#chat{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:13px;scrollbar-width:thin;scrollbar-color:var(--bd) transparent}
+#chat::-webkit-scrollbar{width:4px}
+#chat::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
+
+.msg{display:flex;gap:9px;opacity:0;animation:fu .26s ease forwards}
+@keyframes fu{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+.msg.user{flex-direction:row-reverse;align-self:flex-end;max-width:72%}
+.msg.ai{align-self:flex-start;max-width:96%}
+.ava{width:28px;height:28px;border-radius:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.5px}
+.msg.user .ava{background:var(--blue);color:#000}
+.msg.ai   .ava{background:linear-gradient(135deg,#1a3a88,#0b6440);color:#fff}
+.bub{padding:10px 14px;border-radius:10px;font-size:13.5px;line-height:1.78}
+.msg.user .bub{background:rgba(79,142,247,.16);border:1px solid rgba(79,142,247,.24);border-bottom-right-radius:3px}
+.msg.ai   .bub{background:var(--s2);border:1px solid var(--bd);border-bottom-left-radius:3px}
+.bub strong{color:var(--blue)}
+.bub em{color:var(--green);font-style:normal}
+.bub .hi{color:var(--yellow)}
+.bub .err{color:var(--pink)}
+.bub code{display:inline;padding:1px 6px;border-radius:3px;font-family:var(--mono);font-size:11px;background:rgba(79,142,247,.1);color:var(--blue);border:1px solid rgba(79,142,247,.2)}
+
+/* skill chip */
+.skill-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;background:rgba(155,124,248,.1);border:1px solid rgba(155,124,248,.25);font-size:10px;color:var(--purple);font-family:var(--mono);margin-bottom:7px;letter-spacing:.5px}
+
+/* math block */
+.math-block{background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:12px 14px;margin-top:8px;font-family:var(--mono);font-size:13px;color:#88d4f0;line-height:1.8}
+.math-step{color:var(--dim2);font-size:11px;margin-top:2px}
+.math-ans{color:var(--green);font-weight:700;font-size:15px;margin-top:6px;padding-top:6px;border-top:1px solid var(--bd)}
+
+/* shiritori */
+.siri-status{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--s3);border:1px solid var(--bd);border-radius:7px;margin-top:8px;font-size:12px}
+.siri-badge{padding:2px 9px;border-radius:20px;font-family:var(--mono);font-size:10px;font-weight:700}
+.siri-badge.p{background:rgba(79,142,247,.15);color:var(--blue);border:1px solid rgba(79,142,247,.3)}
+.siri-badge.a{background:rgba(30,217,138,.15);color:var(--green);border:1px solid rgba(30,217,138,.3)}
+.siri-chain{flex:1;color:var(--dim2);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.siri-count{font-family:var(--mono);font-size:10px;color:var(--yellow)}
+
+/* quick replies */
+.qrs{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.qr{padding:5px 12px;border-radius:20px;border:1px solid var(--bd2);background:var(--s3);color:var(--dim2);font-size:12px;cursor:pointer;transition:all .2s}
+.qr:hover{border-color:var(--blue);color:var(--blue);background:rgba(79,142,247,.07)}
+
+/* code block */
+.code-wrap{margin-top:10px;border:1px solid var(--bd);border-radius:8px;overflow:hidden}
+.code-head{display:flex;align-items:center;justify-content:space-between;padding:6px 11px;background:rgba(255,255,255,.025);border-bottom:1px solid var(--bd)}
+.code-lbl{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase}
+.code-lbl.html{color:#f97316}.code-lbl.javascript{color:#fbbf24}.code-lbl.typescript{color:#60a5fa}
+.code-lbl.python{color:#4ade80}.code-lbl.rust{color:#fb923c}.code-lbl.c{color:#94a3b8}
+.code-lbl.cpp{color:#38bdf8}.code-lbl.csharp{color:#c084fc}.code-lbl.java{color:#fcd34d}
+.code-btns{display:flex;gap:5px}
+.cbtn{padding:2px 9px;border-radius:4px;border:1px solid var(--bd);background:transparent;color:var(--dim2);font-size:10px;cursor:pointer;font-family:var(--sans);transition:all .2s}
+.cbtn:hover{border-color:var(--blue);color:var(--blue)}
+.cbtn.pv:hover{border-color:var(--green);color:var(--green)}
+.cbtn.dl:hover{border-color:var(--yellow);color:var(--yellow)}
+.code-ta{display:block;width:100%;background:#050810;color:#6b9ac4;font-family:var(--mono);font-size:11.5px;line-height:1.62;padding:12px;border:none;outline:none;resize:none;max-height:280px;overflow-y:auto;overflow-x:auto;white-space:pre;cursor:text;scrollbar-width:thin;scrollbar-color:var(--bd) transparent}
+
+/* fb */
+.fb-row{display:flex;align-items:center;gap:7px;margin-top:9px;padding-top:8px;border-top:1px solid var(--bd)}
+.fb-l{font-size:11px;color:var(--dim)}
+.fb-btn{padding:2px 11px;border-radius:20px;border:1px solid var(--bd);background:transparent;font-size:12px;cursor:pointer;transition:all .2s}
+.fb-btn.g:hover{background:rgba(30,217,138,.1);border-color:var(--green)}
+.fb-btn.b:hover{background:rgba(247,78,125,.1);border-color:var(--pink)}
+
+/* dots */
+.dots{display:flex;gap:4px;padding:11px 14px;background:var(--s2);border:1px solid var(--bd);border-radius:10px;border-bottom-left-radius:3px;width:fit-content}
+.dots span{width:5px;height:5px;border-radius:50%;background:var(--blue);animation:dt 1.4s ease-in-out infinite}
+.dots span:nth-child(2){animation-delay:.18s}
+.dots span:nth-child(3){animation-delay:.36s}
+@keyframes dt{0%,80%,100%{opacity:.15;transform:scale(.7)}40%{opacity:1;transform:scale(1)}}
+
+/* ── WELCOME ── */
+#welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;padding:28px;text-align:center}
+.w-icon{font-family:var(--mono);font-size:48px;background:linear-gradient(135deg,var(--blue),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:wg 3s ease-in-out infinite}
+@keyframes wg{0%,100%{filter:drop-shadow(0 0 12px rgba(79,142,247,.4))}50%{filter:drop-shadow(0 0 28px rgba(30,217,138,.7))}}
+.w-title{font-family:var(--mono);font-size:17px;letter-spacing:4px}
+.w-sub{font-size:13px;color:var(--dim2);max-width:400px;line-height:1.85}
+.w-skills{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:480px}
+.w-skill{padding:4px 12px;border-radius:20px;border:1px solid var(--bd);background:var(--s2);font-size:11px;color:var(--dim2)}
+.w-chips{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:520px}
+.w-chip{padding:6px 13px;border-radius:20px;border:1px solid var(--bd);background:var(--s2);color:var(--dim2);font-size:12px;cursor:pointer;transition:all .2s}
+.w-chip:hover{border-color:var(--blue);color:var(--blue);background:rgba(79,142,247,.07)}
+
+/* ── INPUT ── */
+#inp-area{padding:12px 16px;border-top:1px solid var(--bd);background:rgba(11,13,24,.98);flex-shrink:0}
+#inp-box{display:flex;gap:9px;align-items:flex-end;background:var(--s2);border:1px solid var(--bd);border-radius:10px;padding:9px 12px;transition:border .2s}
+#inp-box:focus-within{border-color:var(--blue);box-shadow:0 0 0 2px rgba(79,142,247,.07)}
+#inp{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:var(--sans);font-size:14px;resize:none;max-height:120px;line-height:1.6}
+#inp::placeholder{color:var(--dim)}
+#send{width:35px;height:35px;border-radius:7px;border:none;background:linear-gradient(135deg,var(--blue),#1a3fbf);color:#fff;cursor:pointer;font-size:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .2s}
+#send:hover{filter:brightness(1.15);transform:scale(1.07)}
+#send:active{transform:scale(.94)}
+#send:disabled{opacity:.3;cursor:not-allowed;transform:none;filter:none}
+
+/* ── MODALS ── */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.83);backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center}
+.ov.on{display:flex}
+@keyframes mi{from{transform:scale(.93);opacity:0}to{transform:scale(1);opacity:1}}
+.mi{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;animation:mi .2s ease}
+.mh{display:flex;align-items:center;justify-content:space-between;padding:9px 15px;border-bottom:1px solid var(--bd)}
+.mt{font-family:var(--mono);font-size:12px;color:var(--green)}
+.mc{background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;transition:color .2s;line-height:1}
+.mc:hover{color:var(--pink)}
+#pv-modal .mi{width:93vw;height:87vh;display:flex;flex-direction:column}
+#pv-frame{flex:1;border:none;background:#fff}
+
+/* skill manager modal */
+#sk-modal .mi{width:560px;max-width:95vw;max-height:88vh;display:flex;flex-direction:column}
+.sk-modal-body{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin;scrollbar-color:var(--bd) transparent}
+.sk-modal-card{padding:12px 14px;border-radius:8px;border:1px solid var(--bd);background:var(--s2)}
+.sk-modal-card.enabled{border-color:rgba(79,142,247,.3)}
+.skm-head{display:flex;align-items:center;gap:10px;margin-bottom:5px}
+.skm-icon{font-size:20px}
+.skm-name{font-size:14px;font-weight:600;flex:1}
+.skm-toggle{width:36px;height:20px;border-radius:99px;border:none;cursor:pointer;background:var(--bd2);position:relative;transition:background .2s;flex-shrink:0}
+.skm-toggle::after{content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s}
+.skm-toggle.on{background:var(--blue)}
+.skm-toggle.on::after{transform:translateX(16px)}
+.skm-desc{font-size:12px;color:var(--dim2);line-height:1.6;margin-bottom:6px}
+.skm-tags{display:flex;flex-wrap:wrap;gap:4px}
+.skm-tag{font-size:10px;padding:2px 8px;border-radius:3px;background:rgba(155,124,248,.1);color:var(--purple);border:1px solid rgba(155,124,248,.2)}
+.skm-del-btn{padding:4px 11px;border-radius:5px;border:1px solid rgba(247,78,125,.3);background:transparent;color:var(--pink);font-size:11px;cursor:pointer;transition:all .2s;margin-left:auto}
+.skm-del-btn:hover{background:rgba(247,78,125,.1)}
+.gh-section{padding:12px 14px;border-radius:8px;border:1px dashed var(--bd2);background:var(--s3);margin-top:4px}
+.gh-section h4{font-size:12px;color:var(--dim2);margin-bottom:10px;font-family:var(--mono);letter-spacing:.5px}
+.gh-inp{width:100%;padding:8px 11px;background:var(--s2);border:1px solid var(--bd);border-radius:7px;color:var(--text);font-family:var(--mono);font-size:11px;outline:none;transition:border .2s;margin-bottom:7px}
+.gh-inp:focus{border-color:var(--green)}
+.gh-imp-btn{width:100%;padding:8px;border-radius:7px;border:none;background:var(--green);color:#000;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--sans);transition:all .2s}
+.gh-imp-btn:hover{filter:brightness(1.1)}
+#gh-status{font-size:11px;margin-top:6px;min-height:16px;font-family:var(--mono);color:var(--dim2)}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="hdr">
+  <span class="logo">カイ AI</span>
+  <span class="ver">v6.0</span>
+  <span class="pulse"></span>
+  <span id="mode-chip">IDLE</span>
+  <div class="hbtns">
+    <button class="hbtn" onclick="toggleSb()">サイドバー</button>
+    <button class="hbtn skill-btn" onclick="openSKModal()">⚡ スキル管理</button>
+    <button class="hbtn" onclick="resetSess()">↺ リセット</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="sidebar">
+    <div class="stabs">
+      <button class="stab on"  onclick="showTab('skills',this)">スキル</button>
+      <button class="stab"     onclick="showTab('mem',this)">メモリ</button>
+      <button class="stab"     onclick="showTab('api',this)">API</button>
+    </div>
+    <div class="spanel on" id="sp-skills"></div>
+    <div class="spanel"    id="sp-mem"></div>
+    <div class="spanel"    id="sp-api"></div>
+  </div>
+
+  <div id="chat-wrap">
+    <div id="chat">
+      <div id="welcome">
+        <div class="w-icon">⬡</div>
+        <div class="w-title">KAI AI v6</div>
+        <div class="w-sub">スキルで能力を拡張できるAI。しりとり・数学・古典・現代文・コード生成・雑談 — 全部できます。</div>
+        <div class="w-skills" id="w-skills"></div>
+        <div class="w-chips" id="w-chips"></div>
+      </div>
+    </div>
+    <div id="inp-area">
+      <div id="inp-box">
+        <textarea id="inp" rows="1" placeholder="何でも話しかけてください...（しりとり / 数学の問題 / 古典の解説 / コード生成）"></textarea>
+        <button id="send" onclick="doSend()">▶</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PREVIEW MODAL -->
+<div class="ov" id="pv-modal">
+  <div class="mi"><div class="mh"><span class="mt">▶ PREVIEW</span><button class="mc" onclick="closePV()">✕</button></div><iframe id="pv-frame"></iframe></div>
+</div>
+
+<!-- SKILL MANAGER MODAL -->
+<div class="ov" id="sk-modal">
+  <div class="mi">
+    <div class="mh"><span class="mt">⚡ スキル管理</span><button class="mc" onclick="closeSKModal()">✕</button></div>
+    <div class="sk-modal-body" id="sk-modal-body"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const VER = '6.0';
+const MEM_KEY = 'kai_v6';
+const CS = new Map(); // code store
+
+// ══════════════════════════════════════════════════
+// SKILL REGISTRY
+// ══════════════════════════════════════════════════
+const SKILL_REGISTRY = new Map();
+
+function registerSkill(skill) {
+  SKILL_REGISTRY.set(skill.id, { ...skill, enabled: skill.enabled !== false });
+  renderSkillSidebar();
+  updateWelcomeSkills();
+}
+function toggleSkill(id) {
+  const s = SKILL_REGISTRY.get(id);
+  if (s) { s.enabled = !s.enabled; renderSkillSidebar(); renderSKModal(); }
+}
+function removeSkill(id) {
+  if (['shiritori','math','koten','gendaibun','code','chat'].includes(id)) {
+    addAI('⚠ デフォルトスキルは削除できません。', []);
+    return;
+  }
+  SKILL_REGISTRY.delete(id);
+  renderSkillSidebar(); renderSKModal();
+}
+function getEnabledSkills() {
+  return [...SKILL_REGISTRY.values()].filter(s => s.enabled);
+}
+function routeToSkill(input) {
+  const skills = getEnabledSkills();
+  const scores = skills.map(s => {
+    let score = 0;
+    if (s.triggers) {
+      for (const re of s.triggers) {
+        if (re.test(input)) score += 10;
+      }
+    }
+    return { skill: s, score };
+  });
+  scores.sort((a,b) => b.score - a.score);
+  return scores[0]?.score > 0 ? scores[0].skill : null;
+}
+
+// ══════════════════════════════════════════════════
+// SKILL: SHIRITORI (しりとり)
+// ══════════════════════════════════════════════════
+const Siri = {
+  active: false,
+  chain: [],
+  used: new Set(),
+  lastKana: '',
+  consecutive: 0,
+  // Large word dictionary
+  words: [
+    'りんご','ごりら','らっぱ','ぱんだ','だいこん','こんにゃく','くじら','らくだ',
+    'だちょう','うさぎ','ぎたー','たぬき','きつね','ねこ','こあら','らいおん',
+    'んこう','うめ','めだか','かばん','んとう','とうふ','ふろ','ろうそく',
+    'くりすます','すいか','かめ','めがね','ねずみ','みかん','かんがるー',
+    'るびー','びーる','るびん','んき','きりん','りす','すずめ','めろん',
+    'んごう','うなぎ','ぎゅうにゅう','うきわ','わし','しか','かえる','るすばん',
+    'んちき','きのこ','こまつな','なす','すもも','もも','もぐら','らくがき',
+    'きゅうり','りぼん','んてい','ていね','ねぎ','ぎんなん','んびき','びわ',
+    'わかめ','めくら','らっこ','こぶた','たこ','こうもり','りんぼ','ぼたん',
+    'んこん','こんぶ','ぶどう','うさぎ2','ぎょうざ','ざる','るーれっと',
+    'とまと','とけい','いぬ','ぬいぐるみ','みそ','そば','ばなな','なまず',
+    'ずわいがに','にんじん','じてんしゃ','やぎ','ぎんこう','うぐいす','すっぽん',
+    'んちゃ','ちゃわん','んばす','ばす','すけーと','とびうお','おやつ',
+    'つばめ','めーぷる','るーれ','れもん','んそう','そうこ','こくばん',
+    'んぼ','ぼうし','しんぶん','んみつ','みつばち','ちょうちょ','ちょうど',
+    'どらごん','んちき2','きばん','んいん','いんこ','こうえん','えんぴつ',
+    'つくえ','えほん','んちめ','めだい','いわし','しろくま','まつり',
+    'りんご2','ごきぶり','りどみ','みどり','りとる','るかす','すぱい',
+    'いちご','ごんぎつね','ねこじゃらし','しちめんちょう','うわぎ','ぎたー2',
+    'たいよう','うみ','みんな','なまえ','えいご','ごめん','んびん','びんかん',
+  ],
+  getNgWords() { return new Set(['しりとり','んで始まる言葉']); },
+  getAIWord(lastKana) {
+    const cands = this.words.filter(w => {
+      const first = w[0];
+      return first === lastKana && !this.used.has(w) && w[w.length-1] !== 'ん';
+    });
+    if (!cands.length) return null;
+    return cands[Math.floor(Math.random() * cands.length)];
+  },
+  getLastKana(word) {
+    // Get last kana, normalize small kana
+    let last = word[word.length - 1];
+    const norm = {'ぁ':'あ','ぃ':'い','ぅ':'う','ぇ':'え','ぉ':'お','っ':'つ','ゃ':'や','ゅ':'ゆ','ょ':'よ','ー':null};
+    if (last in norm) {
+      if (norm[last] === null) last = word[word.length - 2] || last;
+      else last = norm[last];
+    }
+    return last;
+  },
+  start() {
+    this.active = true;
+    this.chain = ['しりとり'];
+    this.used = new Set(['しりとり']);
+    this.lastKana = 'り';
+    this.consecutive = 0;
+    SESSION.mode = 'shiritori';
+    setChip('SHIRITORI', 'skill');
+  },
+  end() {
+    this.active = false;
+    this.chain = [];
+    this.used = new Set();
+    this.lastKana = '';
+    this.consecutive = 0;
+    SESSION.mode = 'idle';
+    setChip('IDLE', '');
+  },
+  play(input) {
+    const word = input.trim().replace(/[！!？?。、]/g,'');
+    const firstKana = word[0];
+    // Check starts with correct kana
+    if (this.lastKana && firstKana !== this.lastKana) {
+      return { ok:false, msg:`❌ 「**${this.lastKana}**」から始まる言葉を入力してください。\n（入力: 「${word}」）` };
+    }
+    // Check ends with ん
+    const lastKana = this.getLastKana(word);
+    if (lastKana === 'ん') {
+      this.end();
+      return { ok:false, msg:`💀 「ん」で終わる言葉！**あなたの負け**です😄\n（チェーン: ${this.chain.length}個）\n\nもう一度しりとりをしますか？` };
+    }
+    // Check already used
+    if (this.used.has(word)) {
+      return { ok:false, msg:`⚠ 「${word}」はもう使われました！別の言葉を選んでください。` };
+    }
+    // Valid move
+    this.chain.push(word);
+    this.used.add(word);
+    this.lastKana = lastKana;
+    this.consecutive++;
+    // AI responds
+    const aiWord = this.getAIWord(lastKana);
+    if (!aiWord) {
+      const cnt = this.chain.length;
+      this.end();
+      return { ok:true, aiLost:true, msg:`🤔 「**${lastKana}**」から始まる言葉が思いつかない...カイの**負け**です！\n**${cnt}個**繋げました！すごい！` };
+    }
+    this.chain.push(aiWord);
+    this.used.add(aiWord);
+    this.lastKana = this.getLastKana(aiWord);
+    const chainStr = this.chain.slice(-6).join(' → ');
+    return {
+      ok:true,
+      word: aiWord,
+      nextKana: this.getLastKana(aiWord),
+      chainStr,
+      count: this.chain.length,
+      msg: `「**${aiWord}**」\n\n次は **「${this.getLastKana(aiWord)}」** から！`
+    };
+  }
+};
+
+// ══════════════════════════════════════════════════
+// SKILL: MATH ENGINE (高校数学)
+// ══════════════════════════════════════════════════
+const Math_ = {
+  // Safe evaluator
+  safeEval(expr) {
+    expr = expr.replace(/×/g,'*').replace(/÷/g,'/').replace(/²/g,'**2').replace(/³/g,'**3')
+              .replace(/\^/g,'**').replace(/π/g,'Math.PI').replace(/e(?![a-z])/g,'Math.E');
+    try {
+      const fn = new Function('Math','sin','cos','tan','sqrt','log','abs','floor','ceil','round','PI','E',
+        `"use strict"; return (${expr})`,
+        Math, Math.sin, Math.cos, Math.tan, Math.sqrt, Math.log, Math.abs,
+        Math.floor, Math.ceil, Math.round, Math.PI, Math.E);
+      const r = fn();
+      return typeof r === 'number' ? r : null;
+    } catch { return null; }
+  },
+
+  // Detect problem type
+  detectType(s) {
+    if (/二次方程式|x\^2|x²|ax²|二次/.test(s)) return 'quadratic';
+    if (/一次方程式|方程式.*x|x.*=.*\d|\d.*=.*x/.test(s)) return 'linear';
+    if (/sin|cos|tan|三角/.test(s)) return 'trig';
+    if (/log|対数/.test(s)) return 'log';
+    if (/微分|d\/dx|導関数/.test(s)) return 'diff';
+    if (/積分|∫/.test(s)) return 'integ';
+    if (/平均|分散|標準偏差/.test(s)) return 'stats';
+    if (/順列|組み合わせ|nCr|nPr|[Pp]erm|[Cc]omb/.test(s)) return 'comb';
+    if (/確率/.test(s)) return 'prob';
+    if (/ベクトル|vector/.test(s)) return 'vector';
+    if (/行列|matrix/.test(s)) return 'matrix';
+    if (/因数分解|factor/.test(s)) return 'factor';
+    if (/[0-9].*[+\-*\/].*[0-9]|[+\-*\/]/.test(s)) return 'calc';
+    return 'explain';
+  },
+
+  solve(input) {
+    const type = this.detectType(input);
+    switch(type) {
+      case 'quadratic': return this.solveQuadratic(input);
+      case 'linear':    return this.solveLinear(input);
+      case 'trig':      return this.solveTrig(input);
+      case 'log':       return this.solveLog(input);
+      case 'diff':      return this.solveDiff(input);
+      case 'integ':     return this.solveInteg(input);
+      case 'stats':     return this.solveStats(input);
+      case 'comb':      return this.solveComb(input);
+      case 'factor':    return this.solveFactor(input);
+      case 'calc':      return this.solveCalc(input);
+      default:          return this.explainConcept(input);
+    }
+  },
+
+  solveCalc(input) {
+    const expr = input.replace(/[^0-9+\-*\/().π²³^×÷eE]/g,' ').trim();
+    const nums = input.match(/-?\d+\.?\d*/g);
+    // Clean expression
+    const clean = input.replace(/[^0-9+\-*\/().^π²³×÷]/g,'').trim() || (nums ? nums.join('') : '');
+    const r = this.safeEval(expr.replace(/\s+/g,'') || expr);
+    if (r === null) return { type:'calc', error:true, msg:'計算式を認識できませんでした。例: `2+3*4`、`sin(π/6)`' };
+    const disp = Number.isInteger(r) ? r : parseFloat(r.toFixed(8));
+    return { type:'calc', expr, result:disp, steps:[`式: ${input.trim()}`,`= ${disp}`] };
+  },
+
+  solveQuadratic(input) {
+    // Extract ax²+bx+c=0
+    const m = input.match(/(-?\d*\.?\d*)x\^?2\s*([+\-]\s*\d*\.?\d*)x\s*([+\-]\s*\d+\.?\d*)\s*=\s*0/);
+    let a=1,b=0,c=0;
+    if (m) {
+      a = parseFloat(m[1]||'1')||1;
+      b = parseFloat(m[2].replace(/\s/g,''))||0;
+      c = parseFloat(m[3].replace(/\s/g,''))||0;
+    } else {
+      // Try to extract numbers
+      const nums = input.match(/-?\d+\.?\d*/g);
+      if (nums && nums.length >= 2) { a=parseFloat(nums[0]); b=parseFloat(nums[1])||0; c=parseFloat(nums[2])||0; }
+    }
+    const D = b*b - 4*a*c;
+    const steps = [
+      `方程式: ${a}x² + ${b}x + ${c} = 0`,
+      `判別式 D = b² - 4ac = ${b}² - 4×${a}×${c} = ${D}`,
+    ];
+    let result = '';
+    if (D > 0) {
+      const x1 = (-b + Math.sqrt(D))/(2*a), x2 = (-b - Math.sqrt(D))/(2*a);
+      steps.push(`D > 0 → 異なる2つの実数解`);
+      result = `x = ${parseFloat(x1.toFixed(6))}, ${parseFloat(x2.toFixed(6))}`;
+    } else if (D === 0) {
+      const x = -b/(2*a);
+      steps.push(`D = 0 → 重解`);
+      result = `x = ${parseFloat(x.toFixed(6))} (重解)`;
+    } else {
+      const re = -b/(2*a), im = Math.sqrt(-D)/(2*a);
+      steps.push(`D < 0 → 虚数解`);
+      result = `x = ${parseFloat(re.toFixed(4))} ± ${parseFloat(im.toFixed(4))}i`;
+    }
+    return { type:'quadratic', steps, result };
+  },
+
+  solveLinear(input) {
+    // ax + b = c  →  ax = c - b  →  x = (c-b)/a
+    const expr = input.replace(/\s/g,'');
+    const m = expr.match(/(-?\d*\.?\d*)x([+\-]\d+\.?\d*)?=(-?\d+\.?\d*)/);
+    if (!m) {
+      // Try: ax = b
+      const m2 = expr.match(/(-?\d*)x=(-?\d+\.?\d*)/);
+      if (m2) {
+        const a2 = parseFloat(m2[1]||'1')||1, b2 = parseFloat(m2[2]);
+        const x = b2/a2;
+        return { type:'linear', steps:[`${a2}x = ${b2}`, `x = ${b2} ÷ ${a2}`], result:`x = ${parseFloat(x.toFixed(6))}` };
+      }
+      return { type:'linear', error:true, msg:'一次方程式を認識できませんでした。例: `2x + 3 = 7`' };
+    }
+    const a = parseFloat(m[1]||'1')||1, b2 = parseFloat(m[2]||'0')||0, c = parseFloat(m[3]);
+    const x = (c - b2) / a;
+    return {
+      type: 'linear',
+      steps: [
+        `${a}x + ${b2} = ${c}`,
+        `${a}x = ${c} - ${b2} = ${c - b2}`,
+        `x = ${c - b2} ÷ ${a}`,
+      ],
+      result: `x = ${parseFloat(x.toFixed(6))}`
+    };
+  },
+
+  solveTrig(input) {
+    const i = input.toLowerCase();
+    const numMatch = i.match(/\d+\.?\d*/);
+    const deg = numMatch ? parseFloat(numMatch[0]) : null;
+    const rad = deg !== null ? deg * Math.PI / 180 : null;
+    const results = [];
+    if (deg !== null) {
+      results.push(`角度: ${deg}°= ${deg}π/180 rad`);
+      if (/sin/.test(i)) results.push(`sin(${deg}°) = ${parseFloat(Math.sin(rad).toFixed(6))}`);
+      if (/cos/.test(i)) results.push(`cos(${deg}°) = ${parseFloat(Math.cos(rad).toFixed(6))}`);
+      if (/tan/.test(i)) results.push(`tan(${deg}°) = ${parseFloat(Math.tan(rad).toFixed(6))}`);
+    }
+    const table = `\n📋 **三角比の主要値:**\n| 角度 | sin | cos | tan |\n|0°|0|1|0|\n|30°|1/2|√3/2|1/√3|\n|45°|√2/2|√2/2|1|\n|60°|√3/2|1/2|√3|\n|90°|1|0|−|`;
+    return {
+      type:'trig',
+      steps: results.length ? results : ['三角関数の値を計算します'],
+      result: results.length ? results[results.length-1] : '',
+      extra: table
+    };
+  },
+
+  solveLog(input) {
+    const i = input.toLowerCase();
+    const mLog = i.match(/log(\d+\.?\d*)\s*[\(（]?\s*(\d+\.?\d*)/);
+    if (mLog) {
+      const base = parseFloat(mLog[1]), val = parseFloat(mLog[2]);
+      const r = Math.log(val)/Math.log(base);
+      return {
+        type:'log',
+        steps:[`log_${base}(${val})`, `= ln(${val}) / ln(${base})`, `= ${parseFloat(Math.log(val).toFixed(6))} / ${parseFloat(Math.log(base).toFixed(6))}`],
+        result:`= ${parseFloat(r.toFixed(6))}`
+      };
+    }
+    // ln
+    const mLn = i.match(/ln\s*[\(（]?\s*(\d+\.?\d*)/);
+    if (mLn) {
+      const v = parseFloat(mLn[1]);
+      return { type:'log', steps:[`ln(${v})`], result:`= ${parseFloat(Math.log(v).toFixed(6))}` };
+    }
+    return { type:'log', steps:[], result:'', extra:'**対数の公式:**\n・log_a(MN) = log_a(M) + log_a(N)\n・log_a(M/N) = log_a(M) - log_a(N)\n・log_a(Mⁿ) = n·log_a(M)\n・log_a(a) = 1, log_a(1) = 0' };
+  },
+
+  solveDiff(input) {
+    const i = input.toLowerCase();
+    // Basic patterns
+    const patterns = [
+      [/x\^(\d+)|x(\d+)/,    (m) => { const n=parseInt(m[1]||m[2]); return `d/dx [x^${n}] = ${n}x^${n-1}`; }],
+      [/(\d+)x\^(\d+)/,      (m) => { const c=parseInt(m[1]),n=parseInt(m[2]); return `d/dx [${c}x^${n}] = ${c*n}x^${n-1}`; }],
+      [/sin\(x\)/,            () => 'd/dx [sin(x)] = cos(x)'],
+      [/cos\(x\)/,            () => 'd/dx [cos(x)] = -sin(x)'],
+      [/e\^x|exp\(x\)/,       () => 'd/dx [eˣ] = eˣ'],
+      [/ln\(x\)|log\(x\)/,    () => 'd/dx [ln(x)] = 1/x'],
+      [/x\^2/,                () => 'd/dx [x²] = 2x'],
+      [/x\^3/,                () => 'd/dx [x³] = 3x²'],
+    ];
+    for (const [re,fn] of patterns) {
+      const m = i.match(re);
+      if (m) {
+        const result = fn(m);
+        return { type:'diff', steps:['微分の計算:', input.trim()], result };
+      }
+    }
+    return {
+      type:'diff', steps:[], result:'',
+      extra:'**微分の基本公式:**\n・(xⁿ)\' = nxⁿ⁻¹\n・(sin x)\' = cos x\n・(cos x)\' = -sin x\n・(eˣ)\' = eˣ\n・(ln x)\' = 1/x\n・(uv)\' = u\'v + uv\' （積の微分）'
+    };
+  },
+
+  solveInteg(input) {
+    const i = input.toLowerCase();
+    const patterns = [
+      [/x\^(\d+)/,     (m) => { const n=parseInt(m[1]); return `∫x^${n} dx = x^${n+1}/${n+1} + C`; }],
+      [/sin\(x\)/,     () => '∫sin(x) dx = -cos(x) + C'],
+      [/cos\(x\)/,     () => '∫cos(x) dx = sin(x) + C'],
+      [/e\^x|exp\(x\)/,() => '∫eˣ dx = eˣ + C'],
+      [/1\/x|x\^-1/,   () => '∫(1/x) dx = ln|x| + C'],
+    ];
+    for (const [re,fn] of patterns) {
+      const m = i.match(re);
+      if (m) return { type:'integ', steps:['積分の計算:',input.trim()], result:fn(m) };
+    }
+    return {
+      type:'integ', steps:[], result:'',
+      extra:'**積分の基本公式:**\n・∫xⁿ dx = xⁿ⁺¹/(n+1) + C\n・∫sin x dx = -cos x + C\n・∫cos x dx = sin x + C\n・∫eˣ dx = eˣ + C\n・∫(1/x) dx = ln|x| + C'
+    };
+  },
+
+  solveStats(input) {
+    const nums = input.match(/-?\d+\.?\d*/g);
+    if (!nums || nums.length < 2) return { type:'stats', error:true, msg:'数値を入力してください。例: `1,2,3,4,5 の平均`' };
+    const data = nums.map(Number);
+    const n = data.length;
+    const mean = data.reduce((a,b)=>a+b,0)/n;
+    const variance = data.reduce((a,b)=>a+(b-mean)**2,0)/n;
+    const sd = Math.sqrt(variance);
+    const sorted = [...data].sort((a,b)=>a-b);
+    const median = n%2===0 ? (sorted[n/2-1]+sorted[n/2])/2 : sorted[Math.floor(n/2)];
+    return {
+      type:'stats',
+      steps:[`データ: ${data.join(', ')}`, `n = ${n}`],
+      result:`平均(μ): ${parseFloat(mean.toFixed(4))}\n分散(σ²): ${parseFloat(variance.toFixed(4))}\n標準偏差(σ): ${parseFloat(sd.toFixed(4))}\n中央値: ${median}\n最大値: ${Math.max(...data)}, 最小値: ${Math.min(...data)}`
+    };
+  },
+
+  solveComb(input) {
+    const nums = input.match(/\d+/g);
+    if (!nums || nums.length < 2) return { type:'comb', error:true, msg:'例: `5C3`, `7P2`, `5つから3つ選ぶ組み合わせ`' };
+    const n = parseInt(nums[0]), r = parseInt(nums[1]);
+    const fact = (x) => x<=1 ? 1 : x*fact(x-1);
+    const isC = /c|組み合わせ|comb/i.test(input);
+    const isP = /p|順列|perm/i.test(input);
+    const C = fact(n)/(fact(r)*fact(n-r));
+    const P = fact(n)/fact(n-r);
+    const steps = [`n=${n}, r=${r}`, `n! = ${fact(n)}`, `r! = ${fact(r)}`, `(n-r)! = ${fact(n-r)}`];
+    if (isC) return { type:'comb', steps:[...steps,`nCr = n!/(r!(n-r)!)`], result:`${n}C${r} = ${C}` };
+    if (isP) return { type:'comb', steps:[...steps,`nPr = n!/(n-r)!`], result:`${n}P${r} = ${P}` };
+    return { type:'comb', steps, result:`${n}C${r} = ${C}\n${n}P${r} = ${P}` };
+  },
+
+  solveFactor(input) {
+    const m = input.match(/(-?\d*)x\^?2\s*([+\-]\s*\d*)x\s*([+\-]\s*\d+)/);
+    if (!m) return { type:'factor', error:true, msg:'例: `x²+5x+6 を因数分解`' };
+    const a = parseInt(m[1]||'1')||1;
+    const b = parseInt(m[2].replace(/\s/g,'')||'0')||0;
+    const c = parseInt(m[3].replace(/\s/g,'')||'0')||0;
+    // Find p,q such that p+q=b, p*q=a*c
+    let found = null;
+    for (let p=-50;p<=50;p++) {
+      for (let q=-50;q<=50;q++) {
+        if (p+q===b && p*q===a*c) { found=[p,q]; break; }
+      }
+      if (found) break;
+    }
+    if (!found) {
+      const D=b*b-4*a*c;
+      if (D<0) return { type:'factor', steps:[`${a}x²+${b}x+${c}`], result:'実数の範囲では因数分解できません（判別式 D<0）' };
+      return { type:'factor', steps:[`${a}x²+${b}x+${c}`], result:'因数分解の整数解が見つかりませんでした。二次方程式として解きますか？' };
+    }
+    const [p,q] = found;
+    return {
+      type:'factor',
+      steps:[`${a}x²+${b}x+${c}`,`p+q=${b}, p×q=${a*c}を満たすp,q → p=${p}, q=${q}`],
+      result:`= (${a===1?'':''+a}x + ${p/a===Math.floor(p/a)?p/a:p})(x + ${q/a===Math.floor(q/a)?q/a:q})` // simplified
+    };
+  },
+
+  explainConcept(input) {
+    const i = input.toLowerCase();
+    const concepts = {
+      '三平方|ピタゴラス': '**三平方の定理 (ピタゴラスの定理)**\n\na² + b² = c²\n\n直角三角形において、斜辺cの二乗は他の二辺の二乗の和に等しい。\n\n例: a=3, b=4 → c² = 9+16 = 25 → c=5（3-4-5の三角形）',
+      '等差数列': '**等差数列**\n\n一般項: aₙ = a₁ + (n-1)d\n和: Sₙ = n(a₁+aₙ)/2 = n{2a₁+(n-1)d}/2\n\nd: 公差, a₁: 初項',
+      '等比数列': '**等比数列**\n\n一般項: aₙ = a₁·rⁿ⁻¹\n和: Sₙ = a₁(rⁿ-1)/(r-1) (r≠1)\n\nr: 公比, a₁: 初項',
+      '極限|lim': '**極限 (limit)**\n\nlim_{x→a} f(x) = L\n\nxがaに近づくとき、f(x)がLに近づく。\n\nよく使う極限:\n・lim_{x→0} (sin x)/x = 1\n・lim_{x→∞} (1+1/x)ˣ = e',
+      '二項定理': '**二項定理**\n\n(a+b)ⁿ = Σ_{k=0}^{n} nCk · aⁿ⁻ᵏ · bᵏ\n\n例: (a+b)² = a²+2ab+b²\n(a+b)³ = a³+3a²b+3ab²+b³',
+    };
+    for (const [key,val] of Object.entries(concepts)) {
+      if (new RegExp(key).test(i)) return { type:'explain', result:val };
+    }
+    return { type:'explain', result:'数学の問題や概念について教えてください。\n\n例:\n・`2x + 3 = 7` → 方程式を解く\n・`x²+5x+6 = 0` → 二次方程式\n・`sin(60°)` → 三角比\n・`5C3` → 組み合わせ\n・`1,3,5,7,9 の平均` → 統計\n・`三平方の定理` → 概念説明' };
+  }
+};
+
+// ══════════════════════════════════════════════════
+// SKILL: 古典文章 (Classical Japanese)
+// ══════════════════════════════════════════════════
+const Koten = {
+  solve(input) {
+    const i = input;
+    const lower = i.toLowerCase();
+
+    // Grammar patterns
+    if (/助動詞|～り|～む|～ず|～き|～けり|接続/.test(i)) return this.grammar(i);
+    if (/品詞|活用|形容詞|形容動詞|動詞|係り結び/.test(i)) return this.grammar(i);
+    if (/枕草子|清少納言/.test(i)) return this.literature('枕草子');
+    if (/源氏物語|紫式部/.test(i)) return this.literature('源氏物語');
+    if (/徒然草|兼好/.test(i)) return this.literature('徒然草');
+    if (/古今和歌集|万葉集|百人一首/.test(i)) return this.literature('和歌');
+    if (/平家物語|方丈記/.test(i)) return this.literature('平家物語');
+    if (/現代語訳|訳|読み/.test(i)) return this.translate(i);
+    if (/係り結び/.test(i)) return { result:'**係り結びの法則**\n\n文中に「ぞ・なむ・や・か」があると文末は**連体形**\n「こそ」があると文末は**已然形**\n\n例:\n・花ぞ咲き**たる**（「ぞ」→連体形「たる」）\n・いかで**か**聞かむ（「か」→連体形「む」）' };
+
+    return this.overview(input);
+  },
+
+  grammar(input) {
+    const patterns = {
+      'ず': '**「ず」** — 打消しの助動詞\n接続: 未然形\n活用: ず・ざら / ず・ざり / ず / ぬ・ざる / ね・ざれ / ○・ざれ\n意味: ～ない\n例: 「知ら**ず**」= 知らない',
+      'む': '**「む（ん）」** — 推量・意志・婉曲の助動詞\n接続: 未然形\n意味: ①推量(～だろう) ②意志(～しよう) ③婉曲(～ような)\n例: 「行か**む**」= 行こう・行くだろう',
+      'き': '**「き」** — 過去の助動詞\n接続: 連用形\n活用: (せ) / ○ / き / し / しか / ○\n意味: ～た（直接体験の過去）\n例: 「見**き**」= 見た',
+      'けり': '**「けり」** — 過去・詠嘆の助動詞\n接続: 連用形\n意味: ①過去(～た、間接伝聞) ②詠嘆(～だったのだな)\n例: 「あり**けり**」= あったそうだ・あったのだな',
+      'り': '**「り」** — 完了・存続の助動詞\n接続: サ変動詞の未然形、四段動詞の已然形\n意味: ①完了(～た) ②存続(～ている)\n例: 「咲け**り**」= 咲いている',
+    };
+    for (const [kw,val] of Object.entries(patterns)) {
+      if (input.includes(kw)) return { result:val };
+    }
+    return { result:'**古典文法の主な助動詞**\n\n| 助動詞 | 意味 | 接続 |\n|---|---|---|\n|ず|打消(～ない)|未然形|\n|む|推量・意志|未然形|\n|き|過去(直接)|連用形|\n|けり|過去・詠嘆|連用形|\n|り|完了・存続|己然・サ未|\n|たり|完了・存続|連用形|\n|べし|推量・当然|終止形|\n\n調べたい助動詞を具体的に教えてください！' };
+  },
+
+  literature(title) {
+    const works = {
+      '枕草子': '**枕草子** — 清少納言（平安時代）\n\n「春はあけぼの。やうやう白くなりゆく山ぎは、すこしあかりて...」\n\n**特徴:**\n・随筆（日本最古の随筆文学の一つ）\n・「をかし」の文学（知的な趣き）\n・宮廷生活・自然の機知ある観察\n・枕草子は約300段から成る',
+      '源氏物語': '**源氏物語** — 紫式部（平安時代）\n\n世界最古の長編小説と言われる。\n\n**主人公:** 光源氏（桐壺帝の子）\n**テーマ:** 「もののあわれ」— 情趣・無常感\n**構成:** 54帖\n・1〜33帖: 光源氏の栄華\n・34〜41帖: 過渡期\n・42〜54帖: 薫の君の物語',
+      '徒然草': '**徒然草** — 兼好法師（鎌倉時代）\n\n「つれづれなるままに、日暮らし、硯に向かひて...」\n\n**特徴:**\n・随筆\n・「あはれ・をかし」の融合\n・無常観・人生哲学\n・全244段\n有名な段: 第11段「神無月のころ」第52段「仁和寺の法師」',
+      '和歌': '**和歌の基礎**\n\n**五・七・五・七・七**の31音\n\n**三十六歌仙**・**百人一首**が有名\n\n**主な歌の修辞:**\n・枕詞: 特定の語の前に置く飾り言葉\n・序詞: 比喩・連想をもたらす長い前置き\n・掛詞: 一つの音に二つの意味\n・縁語: 関連する言葉を連ねる\n\n例: 「あしひきの 山鳥の尾の しだり尾の ながながし夜を ひとりかも寝む」（柿本人麻呂）',
+      '平家物語': '**平家物語**（鎌倉時代）\n\n「祇園精舎の鐘の声、諸行無常の響きあり...」\n\n**内容:** 平家一族の栄枯盛衰\n**テーマ:** 無常観「盛者必衰の理」\n**文体:** 和漢混交文、七五調のリズム\n**伝承:** 琵琶法師が語り伝えた軍記物語',
+    };
+    return { result: works[title] || `${title}について調べます。` };
+  },
+
+  translate(input) {
+    const translations = [
+      ['いとをかし', '非常に趣がある・面白い（清少納言の表現）'],
+      ['もののあはれ', '物事のしみじみとした情趣・無常の感慨（源氏物語のテーマ）'],
+      ['をかし', '趣がある・風情がある・面白い'],
+      ['あはれ', 'しみじみとした感動・情趣・かわいそう'],
+      ['さらなり', '言うまでもない・もちろんだ'],
+      ['いみじ', 'たいそう・非常に（程度が甚だしい）'],
+      ['げに', 'なるほど・本当に'],
+      ['よろし', 'まあまあよい・悪くない'],
+      ['やがて', 'すぐに・そのまま（現代語の「やがて」とは意味が違う）'],
+      ['ゆかし', '知りたい・見たい・心引かれる'],
+    ];
+    for (const [kw,trans] of translations) {
+      if (input.includes(kw)) return { result:`**「${kw}」**\n\n現代語訳: ${trans}` };
+    }
+    return { result:'現代語訳したい古文を具体的に入力してください。\n\n例: 「いとをかし」「もののあはれ」「やがて」などの古語\n\nまたは作品名（枕草子・源氏物語・徒然草・平家物語・百人一首）を入力すると解説します。' };
+  },
+
+  overview(input) {
+    return { result:'**古典文学・古典文法** についてお答えします。\n\n質問の例:\n・「助動詞「ず」の活用」\n・「係り結びの法則」\n・「枕草子について」\n・「いとをかし を現代語訳して」\n・「源氏物語のテーマ」\n・「万葉集と古今和歌集の違い」' };
+  }
+};
+
+// ══════════════════════════════════════════════════
+// SKILL: 現代文 (Modern Japanese)
+// ══════════════════════════════════════════════════
+const Gendai = {
+  solve(input) {
+    const i = input;
+    if (/要約|まとめ|内容/.test(i) && i.length > 40) return this.summarize(i);
+    if (/読解|解釈|意味/.test(i)) return this.dokkai(i);
+    if (/作文|小論文|書き方/.test(i)) return this.sakubun(i);
+    if (/語彙|言葉の意味|熟語/.test(i)) return this.vocab(i);
+    if (/指示語|こそあど/.test(i)) return this.shijigo(i);
+    return this.general(i);
+  },
+
+  summarize(input) {
+    return {
+      result: '**文章要約のコツ**\n\n1. **主語と述語を把握する**\n   誰が・何を・どうした を明確にする\n\n2. **段落ごとの要点を掴む**\n   各段落の「話題・主張・根拠」を整理\n\n3. **接続詞に注目する**\n   ・逆接「しかし・だが」→ 後が主張\n   ・順接「したがって」→ 結論\n   ・添加「さらに・また」→ 補足\n\n4. **指示語・キーワードを追う**\n\n要約したい文章をそのまま貼り付けてください！'
+    };
+  },
+
+  dokkai(input) {
+    return {
+      result: '**現代文 読解のポイント**\n\n**①対比を見つける**\n筆者は「A ←→ B」の構図で主張を展開することが多い。\n\n**②筆者の主張を特定する**\n・「〜べきだ」「〜はずだ」「〜と考える」\n・逆接の後に主張が来ることが多い\n\n**③具体例と抽象論を区別する**\n具体例は主張を支える材料。要点は抽象的な主張部分。\n\n**④指示語を正確に読む**\n「これ・それ・あれ」は直前の内容を指すことが多い。\n\n読解したい文章を貼り付けてください！'
+    };
+  },
+
+  sakubun(input) {
+    if (/小論文/.test(input)) {
+      return { result: '**小論文の基本構成**\n\n```\n序論（10〜15%）\n  問題提起・立場の明示\n\n本論（70〜80%）\n  ├ 根拠1 + 具体例\n  ├ 根拠2 + 具体例\n  └ 反論への対応\n\n結論（10〜15%）\n  主張の再確認・展望\n```\n\n**注意点:**\n・一文は50字以内を目安に\n・「だ・である」調で統一\n・感情論を避け、論拠を明示\n・「〜と思う」より「〜である」' };
+    }
+    return { result: '**作文・文章作成のコツ**\n\n1. **PREP法**\n   Point（主張）→ Reason（理由）→ Example（例）→ Point（再主張）\n\n2. **一文一意**\n   一文で一つのことだけ伝える\n\n3. **接続詞を効果的に使う**\n   「なぜなら」「例えば」「したがって」\n\n4. **読み返す視点**\n   自分が読者なら「なぜ？」と思う箇所に説明を加える' };
+  },
+
+  vocab(input) {
+    const words = {
+      '恣意的': '「しいてき」— 自分勝手な・法則に従わない（任意の）',
+      'パラダイム': '特定の時代・分野で支配的な考え方の枠組み',
+      '蓋然性': '「がいぜんせい」— 確からしさ・起こりうる可能性の程度',
+      '逆説': '表面上は矛盾しているが真理を含む表現（パラドックス）',
+      'アイロニー': '皮肉・反語。表面の意味と逆の意味を含む表現',
+      'アナロジー': '類推・比喩。異なるものの類似点による推論',
+      'イデオロギー': '思想・社会集団の世界観・価値観の体系',
+    };
+    for (const [kw,def] of Object.entries(words)) {
+      if (input.includes(kw)) return { result:`**「${kw}」**\n\n${def}` };
+    }
+    return { result:'調べたい語句を入力してください。\n\n現代文頻出語彙の例:\n「恣意的」「蓋然性」「パラダイム」「逆説」「アイロニー」「アナロジー」「イデオロギー」' };
+  },
+
+  shijigo(input) {
+    return { result:'**指示語（こそあど言葉）の読み取り**\n\n| 指示語 | 近い | 中間 | 遠い | 不明 |\n|---|---|---|---|---|\n|物|これ|それ|あれ|どれ|\n|場所|ここ|そこ|あそこ|どこ|\n|様子|こんな|そんな|あんな|どんな|\n|方向|こちら|そちら|あちら|どちら|\n\n**読み取りの手順:**\n1. 指示語を見つける\n2. 直前の文・段落を確認\n3. 置き換えて文意が通るか確認\n\n⚠ 「それ」は前文、「あれ」は少し前の文を指すことが多い' };
+  },
+
+  general(input) {
+    return { result:'**現代文** についてお答えします。\n\n質問の例:\n・「読解問題のコツを教えて」\n・「小論文の書き方」\n・「恣意的 の意味」\n・「指示語の読み取り方」\n・「文章の要約方法」\n・（文章を貼り付けると）「この文章を要約して」' };
+  }
+};
+
+// ══════════════════════════════════════════════════
+// DEFAULT SKILLS REGISTRATION
+// ══════════════════════════════════════════════════
+const DEFAULT_SKILLS = [
+  {
+    id:'shiritori', name:'しりとり', icon:'🔤', enabled:true, builtin:true,
+    description:'日本語でしりとりを楽しめます。「ん」で終わったら負け！',
+    tags:['ゲーム','会話','日本語'],
+    triggers:[/しりとり|shiritri/i],
+    handler(input, sess) { return handleShiritori(input); }
+  },
+  {
+    id:'math', name:'高校数学', icon:'📐', enabled:true, builtin:true,
+    description:'方程式・三角関数・対数・微分積分・統計・組み合わせなど高校数学全般',
+    tags:['数学','方程式','三角関数','統計'],
+    triggers:[
+      /数学|方程式|計算|sin|cos|tan|log|微分|積分|行列|ベクトル|確率|統計|組み合わせ|順列|因数分解|二次|三平方|等差|等比|lim|極限/i,
+      /\dx|\d\^|\d\+\d|\d-\d|\d×|\d÷|nCr|nPr/,
+      /平均|分散|標準偏差/
+    ],
+    handler(input, sess) { return handleMath(input); }
+  },
+  {
+    id:'koten', name:'古典文学', icon:'📜', enabled:true, builtin:true,
+    description:'古典文法・助動詞・係り結び・源氏物語・枕草子・徒然草など古文全般',
+    tags:['古典','国語','古文','助動詞'],
+    triggers:[/古典|古文|助動詞|係り結び|枕草子|源氏物語|徒然草|平家物語|万葉集|百人一首|和歌|現代語訳.*古文|古語|いとをかし|もののあはれ/i],
+    handler(input, sess) { return handleKoten(input); }
+  },
+  {
+    id:'gendaibun', name:'現代文', icon:'📖', enabled:true, builtin:true,
+    description:'読解・要約・小論文・語彙・文章作成など現代文全般',
+    tags:['現代文','国語','読解','小論文'],
+    triggers:[/現代文|小論文|読解|要約|作文|語彙|文章.*意味|指示語|こそあど|本文|筆者/i],
+    handler(input, sess) { return handleGendai(input); }
+  },
+  {
+    id:'code', name:'コード生成', icon:'💻', enabled:true, builtin:true,
+    description:'HTML/CSS/JS・Python・TypeScript・Rust・C/C++/C#・Java・PyScriptのコードを自動生成',
+    tags:['コード','プログラミング','Web','Python'],
+    triggers:[/作って|作りたい|作る|書いて|欲しい|生成|プログラム|コード|アプリ|ツール|スクリプト|create|make|build|write/i],
+    handler(input, sess) { return handleCode(input); }
+  },
+  {
+    id:'chat', name:'会話・雑談', icon:'💬', enabled:true, builtin:true,
+    description:'日常会話・技術的な質問・雑談・相談など何でも',
+    tags:['会話','雑談','Q&A'],
+    triggers:[/.*/],
+    handler(input, sess) { return handleChat(input); }
+  }
+];
+
+DEFAULT_SKILLS.forEach(registerSkill);
+
+// ══════════════════════════════════════════════════
+// SKILL HANDLERS
+// ══════════════════════════════════════════════════
+function handleShiritori(input) {
+  const lower = input.toLowerCase().trim();
+  if (!Siri.active) {
+    if (/しりとり/.test(lower)) {
+      Siri.start();
+      return {
+        type:'shiritori_start',
+        text:`🎮 **しりとり**スタート！\n\n最初は「**り**」から始めてください。\nルール: 「ん」で終わったら負け！使った言葉は使えません。\n\nカイ: しりとり → 次は「**り**」から！`,
+        qr:['りんご','りす','りぼん']
+      };
+    }
+  }
+  if (Siri.active) {
+    if (/やめ|終了|end|stop|quit/i.test(lower)) {
+      Siri.end();
+      return { type:'text', text:'しりとりを終了しました！また遊びましょう 😊', qr:['またしりとりしよう'] };
+    }
+    const result = Siri.play(input.trim());
+    return { type:'shiritori', result };
+  }
+  return null;
+}
+
+function handleMath(input) {
+  const result = Math_.solve(input);
+  return { type:'math', result };
+}
+
+function handleKoten(input) {
+  const result = Koten.solve(input);
+  return { type:'koten', result };
+}
+
+function handleGendai(input) {
+  const result = Gendai.solve(input);
+  return { type:'gendai', result };
+}
+
+// Lang inference (from v5)
+const LS = {
+  html:[[20,/ウェブ|web|ブラウザ|サイト|html|css|ランディング|lp\b|フロント/i],[18,/ボタン|フォーム|ログイン|ナビ|ヘッダー|カード|モーダル|タブ/i],[12,/todo|タスク|メモ|ゲーム|パズル|電卓|タイマー/i]],
+  python:[[22,/python|パイソン/i],[20,/スクレイピング|自動化|bot\b/i],[18,/データ分析|pandas|numpy|flask|django/i]],
+  typescript:[[22,/typescript|\bts\b/i],[18,/react|next\.?js|vue/i]],
+  rust:[[25,/rust|ラスト/i]],
+  cpp:[[25,/c\+\+|cpp/i]],
+  csharp:[[25,/c#|csharp/i],[20,/unity/i]],
+  c:[[20,/\bc言語\b|\bc\b.*プログラム/i]],
+  java:[[25,/\bjava\b|ジャバ/i],[20,/spring|android/i]],
+  pyscript:[[30,/pyscript/i]],
+  javascript:[[15,/\bjs\b|javascript|バニラ/i]],
+};
+function inferLang(s) {
+  const scores = {};
+  for (const [lang,sigs] of Object.entries(LS)) { scores[lang]=0; for (const [w,re] of sigs) if(re.test(s)) scores[lang]+=w; }
+  if (Math.max(...Object.values(scores))<8) scores.html+=8;
+  return Object.entries(scores).sort((a,b)=>b[1]-a[1])[0][0];
+}
+
+const LL={html:'HTML/CSS/JS',javascript:'JavaScript',typescript:'TypeScript',python:'Python',rust:'Rust',c:'C',cpp:'C++',csharp:'C#',java:'Java',pyscript:'PyScript'};
+const LE={html:'html',javascript:'js',typescript:'ts',python:'py',rust:'rs',c:'c',cpp:'cpp',csharp:'cs',java:'java',pyscript:'html'};
+const GL={html:'html',javascript:'javascript',typescript:'typescript',python:'python',rust:'rust',c:'c',cpp:'c++',csharp:'c%23',java:'java',pyscript:'html'};
+
+function handleCode(input) {
+  const lang = inferLang(input);
+  const topic = input.replace(/作って|作りたい|書いて|欲しい|生成|create|make|build|を|が|は|で|の|html|css|javascript|python|typescript|rust|java\b/gi,'').trim().slice(0,40)||'アプリ';
+  return { type:'code_async', lang, topic, input };
+}
+
+function handleChat(input) {
+  const i = input.trim().toLowerCase();
+  if (/^(こんにちは|hello|hi|やあ|おはよう|こんばん|どうも|はじめまして)/.test(i))
+    return { type:'text', text:['こんにちは！カイです 👋\n何でも話しかけてください。しりとり・数学・古典・現代文・コード生成など何でもできます！','やあ！今日は何をしますか？\nしりとりしたい・数学を解きたい・コードを書きたいなど気軽にどうぞ！','こんにちは！スキルを使って色々できます。「スキル管理」ボタンで一覧が見られます 😊'][Math.floor(Math.random()*3)], qr:['しりとりしよう','数学の問題','コードを作って','古典を教えて'] };
+  if (/(ありがとう|サンクス|thanks|助かった|完璧|すごい|よかった)/.test(i))
+    return { type:'text', text:['お役に立てて良かったです！','ありがとう！また何かあればどうぞ 😊','よかった！他にも何かありますか？'][Math.floor(Math.random()*3)], qr:[] };
+  if (/使い方|help|ヘルプ|できること/.test(i))
+    return { type:'text', text:`**カイ AI v${VER}** の使い方\n\n⚡ **スキルで拡張できるAI**\n\n| スキル | 使い方の例 |\n|---|---|\n|🔤 しりとり|「しりとりしよう」|\n|📐 高校数学|「x²+5x+6=0 を解いて」|\n|📜 古典文学|「徒然草について教えて」|\n|📖 現代文|「小論文の書き方」|\n|💻 コード生成|「ログインフォームを作って」|\n|💬 会話|何でも！|\n\n「⚡ スキル管理」からスキルの有効/無効化・GitHub URLからの追加ができます。`, qr:['しりとりしよう','x²+5x+6=0を解いて','源氏物語について','ログインフォームを作って'] };
+  if (/(疲れた|つかれた)/.test(i)) return { type:'text', text:'少し休憩しましょう ☕\nしりとりで気分転換もいいですよ！', qr:['しりとりしよう'] };
+  if (/(暇|ひま)/.test(i)) return { type:'text', text:'暇なら**しりとり**しませんか？\nまたは何か数学の問題を出してみてください！', qr:['しりとりしよう','二次方程式を出して','面白い問題'] };
+  if (/名前|なまえ/.test(i)) return { type:'text', text:'**カイ（KAI）** です！\nコードを書くAIなので「コード」から来ています ⬡', qr:[] };
+  if (/二次方程式.*出して|問題.*出して/.test(i)) {
+    const a=Math.floor(Math.random()*3)+1, p=Math.floor(Math.random()*5)+1, q=Math.floor(Math.random()*5)+1;
+    const b=-(p+q)*a, c=p*q*a;
+    return { type:'text', text:`問題 📝\n\n次の二次方程式を解いてください:\n\n**${a===1?'':''+a}x² ${b<0?b:'+'+b}x ${c<0?c:'+'+c} = 0**`, qr:[`${a}x²${b<0?b:'+'+b}x${c<0?c:'+'+c}=0 を解いて`] };
+  }
+  // Fallback
+  return { type:'text', text:`なるほど！「${input.slice(0,20)}」ですね。\n\n何かお手伝いできることはありますか？コード生成・数学・古典・現代文・しりとりなど何でもどうぞ。`, qr:['しりとりしよう','数学の問題','コードを作って'] };
+}
+
+// ══════════════════════════════════════════════════
+// CODE GENERATORS (condensed from v5)
+// ══════════════════════════════════════════════════
+function genCode(topic, lang, input) {
+  const t = (topic+' '+input).toLowerCase();
+  const dark = /dark|ダーク/.test(t);
+  const bg=dark?'#07090f':'#f8fafc', fg=dark?'#e2e8f0':'#1e293b', card=dark?'#0f1420':'#ffffff', bd=dark?'#1a2236':'#e2e8f0', acc='#3b82f6';
+
+  if (lang==='python') return { lang:'python', code:`#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""${topic}"""
+from typing import Optional
+import sys
+
+class App:
+    def __init__(self, name='${topic}'):
+        self.name=name; self.items=[]
+    def add(self,name,value=None):
+        item={'id':len(self.items)+1,'name':name,'value':value}
+        self.items.append(item); return item
+    def remove(self,id_):
+        n=len(self.items); self.items=[i for i in self.items if i['id']!=id_]; return len(self.items)<n
+    def show(self):
+        print(f'=== {self.name} ({len(self.items)}件) ===')
+        for i in self.items: print(f"  [{i['id']:>3}] {i['name']}")
+    def search(self,q): return [i for i in self.items if q.lower() in i['name'].lower()]
+
+def main():
+    a=App(); print(f'{a.name} 起動 (help でコマンド)')
+    while True:
+        try: parts=input('> ').strip().split(None,2)
+        except(EOFError,KeyboardInterrupt): break
+        if not parts: continue
+        match parts:
+            case['add',n,*r]: print(f'追加: {a.add(n,r[0] if r else None)}')
+            case['list']|['ls']: a.show()
+            case['remove'|'rm',id_]:
+                try: print('削除' if a.remove(int(id_)) else 'なし')
+                except ValueError: print('IDエラー')
+            case['search',q]: print('\\n'.join(str(i) for i in a.search(q)) or 'なし')
+            case['help']: print('add <名> [値] | list | remove <id> | search <q> | quit')
+            case['quit']|['q']: sys.exit(0)
+            case _: print('help を参照')
+
+if __name__=='__main__': main()` };
+
+  if (lang==='typescript') return { lang:'typescript', code:`// ${topic} - TypeScript
+interface Item { id:string; name:string; value:unknown; at:Date }
+type R<T>={ok:true;data:T}|{ok:false;err:string}
+class ${topic.replace(/\W/g,'')||'App'} {
+  #items=new Map<string,Item>(); #h=new Map<string,Function[]>();
+  on(ev:string,fn:Function){(this.#h.get(ev)??this.#h.set(ev,[]).get(ev)!).push(fn);return this}
+  #emit(ev:string,d:unknown){(this.#h.get(ev)??[]).forEach(f=>f(d))}
+  add(name:string,value?:unknown):R<Item>{
+    const item:Item={id:Math.random().toString(36).slice(2,10),name,value,at:new Date()};
+    this.#items.set(item.id,item);this.#emit('add',item);return{ok:true,data:item}
+  }
+  get(id:string){return this.#items.get(id)??null}
+  remove(id:string){const ok=this.#items.delete(id);if(ok)this.#emit('remove',id);return ok}
+  all(){return[...this.#items.values()]}
+  search(q:string){return this.all().filter(i=>i.name.toLowerCase().includes(q.toLowerCase()))}
+  stats(){const v=this.all().map(i=>Number(i.value)).filter(Number.isFinite);return{count:this.#items.size,sum:v.reduce((a,b)=>a+b,0),avg:v.length?v.reduce((a,b)=>a+b,0)/v.length:0}}
+}
+const app=new ${topic.replace(/\W/g,'')||'App'}();
+app.on('add',(i:Item)=>console.log('追加:',i.name));
+app.add('サンプル A',100); app.add('サンプル B',200);
+console.log(app.stats());` };
+
+  if (lang==='rust') return { lang:'rust', code:`// ${topic} - Rust  /  cargo run
+use std::{collections::HashMap,io::{self,BufRead,Write}};
+#[derive(Debug,Clone)] struct Item{id:u64,name:String,value:f64}
+#[derive(Default)] struct App{items:Vec<Item>,next:u64}
+impl App {
+    fn add(&mut self,name:&str,v:f64)->u64{self.next+=1;self.items.push(Item{id:self.next,name:name.into(),value:v});self.next}
+    fn remove(&mut self,id:u64)->bool{let b=self.items.len();self.items.retain(|i|i.id!=id);self.items.len()<b}
+    fn show(&self){println!("\\n${topic} ({} 件)",self.items.len());for i in &self.items{println!("  [{}] {} = {:.2}",i.id,i.name,i.value);}}
+}
+fn main(){
+    let mut app=App::default(); let stdin=io::stdin(); let mut out=io::stdout();
+    println!("${topic} 起動"); print!("> "); out.flush().ok();
+    for line in stdin.lock().lines(){
+        let line=line.unwrap(); let p:Vec<&str>=line.trim().splitn(3,' ').collect();
+        match p.as_slice(){
+            ["add",n,v]=>if let Ok(v)=v.parse(){println!("追加 id:{}",app.add(n,v));}else{println!("数値エラー");}
+            ["list"]=>app.show(), ["remove",id]=>if let Ok(id)=id.parse(){println!("{}",if app.remove(id){"削除"}else{"なし"});}
+            ["help"]=>println!("add <名> <値> | list | remove <id> | quit"), ["quit"]=>break, _=>println!("help 参照"),
+        }
+        print!("> "); out.flush().ok();
+    }
+}` };
+
+  // Default: HTML
+  const isTimer=/タイマー|timer|ストップ/.test(t);
+  const isTodo=/todo|タスク|やること/.test(t);
+  const isDash=/dashboard|ダッシュボード|管理/.test(t);
+  const isLogin=/login|ログイン|フォーム|form/.test(t);
+  const isCalc=/電卓|calculator|計算機/.test(t);
+
+  if (isTimer) return { lang:'html', code:`<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${topic}</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;background:${bg};display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',sans-serif}
+.card{background:${card};border:1px solid ${bd};border-radius:20px;padding:42px 52px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.08)}
+.ttl{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:#64748b;margin-bottom:22px}
+.disp{font-size:72px;font-weight:300;font-variant-numeric:tabular-nums;background:linear-gradient(135deg,${acc},#06d6a0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1;margin-bottom:26px}
+.ms{font-size:36px;opacity:.6}.btns{display:flex;gap:10px;justify-content:center}
+.btn{padding:11px 24px;border-radius:9px;border:none;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s}
+.go{background:#06d6a0;color:#000}.go:hover{filter:brightness(1.1)}
+.st{background:#f72585;color:#fff}.st:hover{filter:brightness(1.1)}
+.rs{background:${dark?'#1a2236':'#e2e8f0'};color:#64748b}
+.laps{max-height:160px;overflow-y:auto;margin-top:16px}
+.lap{display:flex;justify-content:space-between;padding:5px 10px;font-size:12px;color:#94a3b8}</style></head><body>
+<div class="card"><div class="ttl">STOPWATCH</div>
+<div class="disp" id="d">00:00<span class="ms">.00</span></div>
+<div class="btns">
+<button class="btn go" id="bb" onclick="ss()">スタート</button>
+<button class="btn st" onclick="lap_()">ラップ</button>
+<button class="btn rs" onclick="rs_()">リセット</button>
+</div><div class="laps" id="lp"></div></div>
+<script>
+let st=0,el=0,run=false,raf,laps=[];
+function fmt(ms){const m=Math.floor(ms/60000),s=Math.floor(ms%60000/1000),c=Math.floor(ms%1000/10);return(m<10?'0':'')+m+':'+(s<10?'0':'')+s+'<span class="ms">.'+(c<10?'0':'')+c+'</span>'}
+function tick(){el=Date.now()-st;document.getElementById('d').innerHTML=fmt(el);raf=requestAnimationFrame(tick)}
+function ss(){if(run){cancelAnimationFrame(raf);run=false;document.getElementById('bb').textContent='再開';}else{st=Date.now()-el;run=true;tick();document.getElementById('bb').textContent='一時停止';}}
+function lap_(){if(!run)return;const d=el-(laps.reduce((a,b)=>a+b,0)||0);laps.push(d);document.getElementById('lp').innerHTML=laps.map((v,i)=>'<div class="lap"><span>LAP '+(laps.length-i)+'</span><span>'+fmt(v).replace(/<[^>]*>/g,'')+'</span></div>').reverse().join('');}
+function rs_(){cancelAnimationFrame(raf);el=0;run=false;laps=[];document.getElementById('d').innerHTML='00:00<span class="ms">.00</span>';document.getElementById('bb').textContent='スタート';document.getElementById('lp').innerHTML='';}
+<\/script></body></html>` };
+
+  if (isTodo) return { lang:'html', code:`<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${topic}</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;background:${bg};font-family:'Segoe UI',sans-serif;padding:40px 20px;color:${fg}}
+.app{max-width:480px;margin:0 auto}h1{font-size:24px;font-weight:700;margin-bottom:4px}.sub{font-size:13px;color:#94a3b8;margin-bottom:20px}
+.row{display:flex;gap:8px;margin-bottom:18px}input[type=text]{flex:1;padding:10px 13px;border:2px solid ${bd};border-radius:8px;background:${dark?'#111827':'#fff'};color:${fg};font-size:14px;outline:none;transition:border .2s;font-family:inherit}input[type=text]:focus{border-color:${acc}}
+.add{padding:10px 18px;background:${acc};border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}.add:hover{filter:brightness(1.1)}
+.filters{display:flex;gap:5px;margin-bottom:13px}.fil{padding:5px 12px;border-radius:20px;border:1px solid ${bd};background:none;font-size:12px;color:#64748b;cursor:pointer;transition:all .2s;font-family:inherit}.fil.on{background:${acc};border-color:${acc};color:#fff}
+.list{display:flex;flex-direction:column;gap:6px}.item{display:flex;align-items:center;gap:9px;padding:11px 13px;background:${card};border-radius:9px;border:1px solid ${bd};transition:all .2s}
+.item.done{opacity:.45}.item.done .txt{text-decoration:line-through;color:#94a3b8}
+.ck{width:20px;height:20px;border-radius:50%;border:2px solid #cbd5e1;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .2s}
+.item.done .ck{background:#22c55e;border-color:#22c55e;color:#fff}.txt{flex:1;font-size:14px}
+.del{background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:16px;transition:color .2s}.del:hover{color:#ef4444}
+.ft{display:flex;justify-content:space-between;margin-top:12px;font-size:12px;color:#94a3b8}.clr{background:none;border:none;color:#94a3b8;font-size:12px;cursor:pointer;font-family:inherit}.clr:hover{color:#ef4444}
+.empty{text-align:center;padding:32px;color:#94a3b8;font-size:14px}</style></head><body>
+<div class="app"><h1>📝 ${topic}</h1><div class="sub" id="st">0個のタスク</div>
+<div class="row"><input type="text" id="ni" placeholder="新しいタスク..." onkeydown="if(event.key==='Enter')add_()"><button class="add" onclick="add_()">追加</button></div>
+<div class="filters"><button class="fil on" onclick="setF('all',this)">すべて</button><button class="fil" onclick="setF('act',this)">未完了</button><button class="fil" onclick="setF('don',this)">完了</button></div>
+<div class="list" id="lst"></div>
+<div class="ft"><span id="rem"></span><button class="clr" onclick="clrD()">完了削除</button></div></div>
+<script>
+let tasks=[{id:1,text:'カイAIで作ったTodo',done:false}],fil='all',nid=2;
+function ren(){const v=tasks.filter(t=>fil==='all'||fil==='act'&&!t.done||fil==='don'&&t.done);const l=document.getElementById('lst');l.innerHTML=v.length?v.map(t=>'<div class="item'+(t.done?' done':'')+'"><div class="ck" onclick="tog('+t.id+')">'+(t.done?'✓':'')+'</div><div class="txt">'+t.text+'</div><button class="del" onclick="del_('+t.id+')">×</button></div>').join(''):'<div class="empty">タスクなし ✓</div>';document.getElementById('st').textContent=tasks.length+'個のタスク';document.getElementById('rem').textContent=tasks.filter(x=>!x.done).length+'個が未完了';}
+function add_(){const v=document.getElementById('ni').value.trim();if(!v)return;tasks.unshift({id:nid++,text:v,done:false});document.getElementById('ni').value='';ren();}
+function tog(id){tasks=tasks.map(t=>t.id===id?{...t,done:!t.done}:t);ren();}
+function del_(id){tasks=tasks.filter(t=>t.id!==id);ren();}
+function clrD(){tasks=tasks.filter(t=>!t.done);ren();}
+function setF(f,b){fil=f;document.querySelectorAll('.fil').forEach(x=>x.classList.remove('on'));b.classList.add('on');ren();}
+ren();
+<\/script></body></html>` };
+
+  // Default HTML app
+  return { lang:'html', code:`<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${topic}</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{min-height:100vh;background:${bg};color:${fg};font-family:'Segoe UI',sans-serif}
+nav{padding:13px 22px;background:${card};border-bottom:1px solid ${bd};display:flex;align-items:center;gap:12px}
+.logo{font-size:17px;font-weight:700;color:${acc}}.nav-r{margin-left:auto;display:flex;gap:8px}
+.nbtn{padding:7px 15px;border-radius:7px;border:1px solid ${bd};background:none;color:#64748b;font-size:13px;cursor:pointer;transition:all .2s}.nbtn:hover{border-color:${acc};color:${acc}}
+.nbtn.p{background:${acc};border-color:${acc};color:#fff}.nbtn.p:hover{filter:brightness(1.1)}
+.hero{padding:70px 22px 44px;text-align:center}.hero h1{font-size:36px;font-weight:800;margin-bottom:12px}
+.hero p{font-size:15px;color:#64748b;max-width:440px;margin:0 auto 26px;line-height:1.75}
+.hero-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.hbtn{padding:12px 26px;border-radius:9px;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s;border:none}
+.hbtn.p{background:${acc};color:#fff}.hbtn.p:hover{filter:brightness(1.1);transform:translateY(-2px)}
+.hbtn.s{background:${dark?'#1a2236':'#f1f5f9'};color:${fg};border:1px solid ${bd}}.hbtn.s:hover{border-color:${acc};color:${acc}}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;max-width:860px;margin:0 auto;padding:0 22px 50px}
+.feat{background:${card};border:1px solid ${bd};border-radius:11px;padding:18px;transition:all .3s}
+.feat:hover{transform:translateY(-3px);border-color:#94a3b8}.feat-i{font-size:24px;margin-bottom:8px}
+.feat-t{font-size:14px;font-weight:700;margin-bottom:5px}.feat-d{font-size:12px;color:#64748b;line-height:1.65}</style></head><body>
+<nav><span class="logo">✦ ${topic}</span><div class="nav-r"><button class="nbtn">ログイン</button><button class="nbtn p">始める</button></div></nav>
+<div class="hero"><h1>${topic}</h1><p>シンプルで強力なアプリ。あなたの作業をもっとスマートに。</p>
+<div class="hero-btns"><button class="hbtn p" onclick="alert('スタート！')">無料で始める →</button><button class="hbtn s">詳しく見る</button></div></div>
+<div class="grid">
+<div class="feat"><div class="feat-i">⚡</div><div class="feat-t">高速・軽量</div><div class="feat-d">ストレスのない操作感。</div></div>
+<div class="feat"><div class="feat-i">🔒</div><div class="feat-t">安全・信頼</div><div class="feat-d">データは暗号化されます。</div></div>
+<div class="feat"><div class="feat-i">📱</div><div class="feat-t">全デバイス対応</div><div class="feat-d">PC・スマホで動作します。</div></div>
+</div></body></html>` };
+}
+
+// ══════════════════════════════════════════════════
+// GITHUB SKILL IMPORT
+// ══════════════════════════════════════════════════
+async function importFromGitHub(url) {
+  setGHStatus('読み込み中...', 'var(--yellow)');
+  try {
+    // Convert GitHub URL to raw URL
+    let rawUrl = url.trim();
+    rawUrl = rawUrl
+      .replace('https://github.com/', 'https://raw.githubusercontent.com/')
+      .replace('/blob/', '/');
+    if (!rawUrl.includes('raw.githubusercontent.com') && !rawUrl.startsWith('https://')) {
+      throw new Error('有効なGitHub URLを入力してください');
+    }
+    const res = await fetch(rawUrl);
+    if (!res.ok) throw new Error(`取得失敗: ${res.status}`);
+    const text = await res.text();
+    // Try to parse as skill definition
+    const skill = parseSkillFromCode(text, url);
+    if (!skill) throw new Error('スキル定義が見つかりません。フォーマットを確認してください。');
+    registerSkill(skill);
+    setGHStatus(`✅ 「${skill.name}」を登録しました！`, 'var(--green)');
+    renderSKModal();
+    return skill;
+  } catch(e) {
+    setGHStatus(`❌ ${e.message}`, 'var(--pink)');
+    return null;
+  }
+}
+
+function setGHStatus(msg, color) {
+  const el = document.getElementById('gh-status');
+  if (el) { el.textContent = msg; el.style.color = color; }
+}
+
+function parseSkillFromCode(code, sourceUrl) {
+  // Try JSON format
+  if (code.trim().startsWith('{') || code.trim().startsWith('[')) {
+    try {
+      const obj = JSON.parse(code.trim().startsWith('[') ? `{"skills":${code}}` : code);
+      const s = obj.skill || obj;
+      if (s.id && s.name) {
+        return buildSkillFromObj(s, sourceUrl);
+      }
+    } catch {}
+  }
+  // Try to extract skill object from JS
+  const match = code.match(/const\s+\w+\s*=\s*\{[\s\S]*?\}/);
+  if (match) {
+    try {
+      const fn = new Function(`return ${match[0].replace(/^const\s+\w+\s*=\s*/,'')}`);
+      const obj = fn();
+      if (obj && obj.id && obj.name) return buildSkillFromObj(obj, sourceUrl);
+    } catch {}
+  }
+  // Heuristic: extract name/description/keywords from any file
+  const nameMatch = code.match(/name['":\s]+(['"]?)([^\s'",:]+)\1/i);
+  const idMatch   = code.match(/id['":\s]+(['"]?)([a-zA-Z0-9_\-]+)\1/i);
+  if (nameMatch) {
+    return {
+      id: idMatch ? idMatch[2] : 'gh_' + Date.now(),
+      name: nameMatch[2],
+      icon: '🌐',
+      description: `GitHubから読み込んだスキル (${sourceUrl.split('/').pop()})`,
+      enabled: true,
+      builtin: false,
+      tags: ['GitHub'],
+      source: sourceUrl,
+      triggers: [new RegExp(nameMatch[2].toLowerCase(), 'i')],
+      handler(input) {
+        return { type:'text', text:`**${nameMatch[2]}** スキルが呼び出されました。\n\nソース: [GitHub](${sourceUrl})\n\nこのスキルのハンドラーをカスタマイズしてください。`, qr:[] };
+      }
+    };
+  }
+  return null;
+}
+
+function buildSkillFromObj(obj, sourceUrl) {
+  const kw = (obj.keywords || obj.tags || [obj.name || '']).map(k => new RegExp(k.toLowerCase(),'i'));
+  return {
+    id:          obj.id || 'gh_' + Date.now(),
+    name:        obj.name || 'GitHub Skill',
+    icon:        obj.icon || '🌐',
+    description: obj.description || `GitHubから読み込んだスキル`,
+    enabled:     true,
+    builtin:     false,
+    tags:        obj.tags || [],
+    source:      sourceUrl,
+    triggers:    kw.length ? kw : [/.*/],
+    handler(input) {
+      const resp = obj.response || obj.answer || `${obj.name} スキルが応答しました。`;
+      return { type:'text', text: typeof resp === 'function' ? resp(input) : resp, qr:[] };
+    }
+  };
+}
+
+// ══════════════════════════════════════════════════
+// MEMORY
+// ══════════════════════════════════════════════════
+function loadMem(){try{return JSON.parse(localStorage.getItem(MEM_KEY))||{learned:[],scores:{}}}catch{return{learned:[],scores:{}}}}
+function saveMem(m){try{localStorage.setItem(MEM_KEY,JSON.stringify(m))}catch{}}
+function addLearned(kw,name,lang,code){const m=loadMem();m.learned.unshift({id:'u'+Date.now(),keywords:kw,name,language:lang,code,uses:0,added:new Date().toLocaleDateString('ja')});saveMem(m);renderMem()}
+function delLearned(id){const m=loadMem();m.learned=m.learned.filter(x=>x.id!==id);saveMem(m);renderMem()}
+function rateItem(id,good){const m=loadMem();if(!m.scores[id])m.scores[id]={g:0,b:0};good?m.scores[id].g++:m.scores[id].b++;saveMem(m)}
+function memMatch(input){const low=input.toLowerCase();const m=loadMem();for(const p of m.learned){if((p.keywords||[]).some(k=>low.includes(k.toLowerCase())))return p;}return null}
+
+// ══════════════════════════════════════════════════
+// SESSION
+// ══════════════════════════════════════════════════
+const SESSION = { mode:'idle', turnCount:0 };
+let BUSY = false;
+let sbOpen = true;
+
+function setChip(text, cls='') {
+  const c = document.getElementById('mode-chip');
+  c.textContent = text;
+  c.className = cls ? `mode-chip ${cls}` : 'mode-chip';
+  // Wait — fix: use id and className correctly
+  c.className = cls==='skill'?'mode-chip skill':cls==='active'?'mode-chip active':'mode-chip';
+}
+
+// ══════════════════════════════════════════════════
+// MAIN SEND
+// ══════════════════════════════════════════════════
+async function doSend() {
+  if (BUSY) return;
+  const inp = document.getElementById('inp');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = ''; inp.style.height = 'auto';
+  const w = document.getElementById('welcome');
+  if (w) w.remove();
+
+  addUser(text);
+  SESSION.turnCount++;
+  BUSY = true;
+  document.getElementById('send').disabled = true;
+  setChip('THINKING', 'active');
+
+  const dots = addDots();
+  await sleep(250 + Math.random() * 300);
+
+  try {
+    // Shiritori ongoing check first
+    if (Siri.active) {
+      const r = handleShiritori(text);
+      if (r) { removeDots(dots); await renderSkillResponse(r, 'shiritori'); return; }
+    }
+
+    // Memory match (for code)
+    const mm = memMatch(text);
+    if (mm) {
+      removeDots(dots);
+      addSkillChip('メモリ');
+      CS.set('mm_'+Date.now(), mm.code);
+      addCodeMsg(mm.name, mm.language, mm.code, 'mm_'+Date.now());
+      return;
+    }
+
+    // Route to best skill
+    const skill = routeToSkill(text);
+    if (skill) {
+      const result = skill.handler(text, SESSION);
+      removeDots(dots);
+      addSkillChip(skill.name);
+      await renderSkillResponse(result, skill.id);
+    } else {
+      removeDots(dots);
+      addAI('スキルが見つかりませんでした。「⚡ スキル管理」からスキルを確認してください。', []);
+    }
+  } catch(e) {
+    removeDots(dots);
+    addAI('⚠ エラー: ' + e.message, []);
+  } finally {
+    BUSY = false;
+    document.getElementById('send').disabled = false;
+    setChip('IDLE', '');
+    document.getElementById('inp').focus();
+  }
+}
+
+async function renderSkillResponse(res, skillId) {
+  if (!res) return;
+  if (res.type === 'text') {
+    addAI(res.text || '', res.qr || []);
+  }
+  else if (res.type === 'shiritori_start') {
+    addAI(res.text, res.qr || []);
+  }
+  else if (res.type === 'shiritori') {
+    const r = res.result;
+    if (!r.ok) {
+      addAI(r.msg, r.msg.includes('もう一度') ? ['しりとりしよう'] : []);
+      if (r.msg.includes('負け')) Siri.end();
+    } else if (r.aiLost) {
+      addAI(r.msg, ['もう一度しりとりしよう']);
+    } else {
+      const bub = addSiriBub(r.word, r.nextKana, r.count, Siri.chain.slice(-5).join(' → '));
+      addAI(r.msg, []);
+    }
+  }
+  else if (res.type === 'math') {
+    renderMathResult(res.result);
+  }
+  else if (res.type === 'koten' || res.type === 'gendai') {
+    addAI(res.result.result || '', []);
+  }
+  else if (res.type === 'code_async') {
+    addAI(`**${LL[res.lang]||res.lang}** で「${res.topic}」を生成します...`, []);
+    const dot2 = addDots();
+    const refs = await ghSearch(res.topic, res.lang);
+    if (refs.length) { addGH(refs); }
+    removeDots(dot2);
+    await sleep(300);
+    const r = genCode(res.topic, res.lang, res.input);
+    const id = 'c_' + Date.now();
+    CS.set(id, r.code);
+    // Auto-learn
+    const m = loadMem();
+    const kw = res.topic.split(/\s+/).slice(0,5).filter(Boolean);
+    m.learned.unshift({id,keywords:kw,name:res.topic,language:r.lang,code:r.code,uses:1,added:new Date().toLocaleDateString('ja')});
+    saveMem(m); renderMem();
+    addCodeMsg(res.topic, r.lang, r.code, id);
+  }
+  else if (res.type === 'code') {
+    const id = 'c_' + Date.now();
+    CS.set(id, res.code);
+    addCodeMsg(res.name||'コード', res.lang, res.code, id);
+  }
+}
+
+async function ghSearch(q, lang) {
+  try {
+    const url=`https://api.github.com/search/repositories?q=${encodeURIComponent(q.slice(0,40))}+language:${GL[lang]||'html'}&sort=stars&order=desc&per_page=4`;
+    const r=await fetch(url,{headers:{'Accept':'application/vnd.github.v3+json'}});
+    if(!r.ok)return[];
+    const d=await r.json();
+    return(d.items||[]).slice(0,3).map(x=>({name:x.full_name,desc:x.description||'説明なし',stars:x.stargazers_count,url:x.html_url}));
+  }catch{return[]}
+}
+
+// ══════════════════════════════════════════════════
+// DOM BUILDERS
+// ══════════════════════════════════════════════════
+function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function fmt(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/\n/g,'<br>')
+    .replace(/\|(.+)\|/g, (m) => {
+      const cells = m.split('|').filter(Boolean);
+      return '<table style="border-collapse:collapse;margin:6px 0;font-size:12px">' + cells.map((c,i) => `<td style="padding:3px 8px;border:1px solid var(--bd);${i===0?'font-weight:600;color:var(--blue)':''}">${c.trim()}</td>`).join('') + '</table>';
+    });
+}
+
+function addUser(text){
+  const chat=document.getElementById('chat');
+  const row=document.createElement('div');row.className='msg user';
+  const ava=document.createElement('div');ava.className='ava';ava.textContent='YOU';
+  const bub=document.createElement('div');bub.className='bub';bub.textContent=text;
+  row.append(ava,bub);chat.append(row);chat.scrollTop=chat.scrollHeight;
+}
+
+function addAI(text, qrs=[]) {
+  const chat=document.getElementById('chat');
+  const row=document.createElement('div');row.className='msg ai';
+  const ava=document.createElement('div');ava.className='ava';ava.textContent='KAI';
+  const bub=document.createElement('div');bub.className='bub';
+  bub.innerHTML=fmt(text);
+  if(qrs.length){
+    const qrDiv=document.createElement('div');qrDiv.className='qrs';
+    qrs.forEach(q=>{const b=document.createElement('button');b.className='qr';b.textContent=q;b.onclick=()=>{document.getElementById('inp').value=q;doSend()};qrDiv.append(b)});
+    bub.append(qrDiv);
+  }
+  row.append(ava,bub);chat.append(row);chat.scrollTop=chat.scrollHeight;
+  return row;
+}
+
+function addSkillChip(name) {
+  const chat=document.getElementById('chat');
+  const row=document.createElement('div');row.className='msg ai';
+  const ava=document.createElement('div');ava.className='ava';ava.textContent='KAI';
+  const bub=document.createElement('div');bub.className='bub';
+  const chip=document.createElement('div');chip.className='skill-chip';chip.textContent='⚡ '+name+' スキル';
+  bub.append(chip);row.append(ava,bub);chat.append(row);chat.scrollTop=chat.scrollHeight;
+}
+
+function addSiriBub(word, next, count, chain) {
+  const chat=document.getElementById('chat');
+  const row=document.createElement('div');row.className='msg ai';
+  const ava=document.createElement('div');ava.className='ava';ava.textContent='KAI';
+  const bub=document.createElement('div');bub.className='bub';
+  const st=document.createElement('div');st.className='siri-status';
+  st.innerHTML=`<span class="siri-badge a">AI</span><span class="siri-chain">${esc(chain)}</span><span class="siri-count">${count}個</span>`;
+  bub.append(st);row.append(ava,bub);chat.append(row);chat.scrollTop=chat.scrollHeight;
+}
+
+function renderMathResult(r) {
+  const chat=document.getElementById('chat');
+  const row=document.createElement('div');row.className='msg ai';
+  const ava=document.createElement('div');ava.className='ava';ava.textContent='KAI';
+  const bub=document.createElement('div');bub.className='bub';
+
+  if (r.error) { bub.innerHTML='<span class="err">⚠ '+esc(r.msg||'エラー')+'</span>'; row.append(ava,bub); chat.append(row); chat.scrollTop=chat.scrollHeight; return; }
+
+  // Skill chip
+  const chip=document.createElement('div');chip.className='skill-chip';chip.textContent='⚡ 数学 スキル';
+
+  const mb=document.createElement('div');mb.className='math-block';
+  if (r.steps && r.steps.length) {
+    r.steps.forEach((s,i) => {
+      const d=document.createElement('div');d.className=i>0?'math-step':'';d.textContent=s;mb.append(d);
+    });
+  }
+  if (r.result) {
+    const ans=document.createElement('div');ans.className='math-ans';ans.textContent='✓ 答え: '+r.result;mb.append(ans);
+  }
+  bub.append(chip,mb);
+  if (r.extra) {
+    const ex=document.createElement('div');ex.style.marginTop='8px';ex.innerHTML=fmt(r.extra);bub.append(ex);
+  }
+  row.append(ava,bub);chat.append(row);chat.scrollTop=chat.scrollHeight;
+}
+
+function addDots(){
+  const chat=document.getElementById('chat');
+  const row=document.createElement('div');row.className='msg ai';
+  const ava=document.createElement('div');ava.className='ava';ava.textContent='KAI';
+  const d=document.createElement('div');d.className='dots';d.innerHTML='<span></span><span></span><span></span>';
+  row.append(ava,d);chat.append(row);chat.scrollTop=chat.scrollHeight;return row;
+}
+function removeDots(el){if(el&&el.parentNode)el.remove()}
+
+function addGH(refs){
+  const chat=document.getElementById('chat');
+  const row=document.createElement('div');row.className='msg ai';
+  const ava=document.createElement('div');ava.className='ava';ava.textContent='KAI';
+  const bub=document.createElement('div');bub.className='bub';
+  const wrap=document.createElement('div');wrap.className='gh-refs';
+  refs.forEach(r=>{
+    const a=document.createElement('a');a.className='gh-ref';a.href=r.url;a.target='_blank';a.rel='noopener';
+    const info=document.createElement('div');info.className='gh-info';
+    const nm=document.createElement('div');nm.className='gh-name';nm.textContent=r.name;
+    const dc=document.createElement('div');dc.className='gh-desc';dc.textContent=r.desc;
+    const st=document.createElement('span');st.className='gh-st';st.textContent='★ '+(r.stars>=1000?(r.stars/1000).toFixed(1)+'k':r.stars);
+    info.append(nm,dc);a.innerHTML='<span style="font-size:14px;flex-shrink:0">📦</span>';a.append(info,st);wrap.append(a);
+  });
+  bub.append(wrap);row.append(ava,bub);chat.append(row);chat.scrollTop=chat.scrollHeight;
+}
+
+function addCodeMsg(name, lang, code, id) {
+  CS.set(id, code);
+  const chat=document.getElementById('chat');
+  const row=document.createElement('div');row.className='msg ai';
+  const ava=document.createElement('div');ava.className='ava';ava.textContent='KAI';
+  const bub=document.createElement('div');bub.className='bub';
+  const hdr=document.createElement('div');hdr.style.marginBottom='8px';hdr.innerHTML='<em>✅</em> <strong>'+esc(name)+'</strong> を生成しました';
+  const cw=document.createElement('div');cw.className='code-wrap';
+  const ch=document.createElement('div');ch.className='code-head';
+  const lbl=document.createElement('span');lbl.className='code-lbl '+lang;lbl.textContent=LL[lang]||lang;
+  const acts=document.createElement('div');acts.className='code-btns';
+  const bCopy=document.createElement('button');bCopy.className='cbtn';bCopy.textContent='コピー';bCopy.onclick=()=>doCopy(id,bCopy);
+  acts.append(bCopy);
+  if(lang==='html'||lang==='pyscript'){const bPv=document.createElement('button');bPv.className='cbtn pv';bPv.textContent='▶ プレビュー';bPv.onclick=()=>openPV(id);acts.append(bPv);}
+  const bDl=document.createElement('button');bDl.className='cbtn dl';bDl.textContent='保存';bDl.onclick=()=>doDl(id,name,lang);acts.append(bDl);
+  ch.append(lbl,acts);
+  const ta=document.createElement('textarea');ta.className='code-ta';ta.readOnly=true;
+  ta.rows=Math.min(code.split('\n').length,18);
+  ta.textContent=code.length>900?code.slice(0,900)+'\n…(省略)':code;
+  cw.append(ch,ta);
+  const fb=document.createElement('div');fb.className='fb-row';
+  const fl=document.createElement('span');fl.className='fb-l';fl.textContent='役に立ちましたか？';
+  const fg=document.createElement('button');fg.className='fb-btn g';fg.textContent='👍';fg.onclick=()=>doFb(fb,id,true);
+  const fb2=document.createElement('button');fb2.className='fb-btn b';fb2.textContent='👎';fb2.onclick=()=>doFb(fb,id,false);
+  fb.append(fl,fg,fb2);
+  bub.append(hdr,cw,fb);row.append(ava,bub);chat.append(row);chat.scrollTop=chat.scrollHeight;
+}
+
+function doCopy(id,btn){const c=CS.get(id);if(!c)return;navigator.clipboard.writeText(c).then(()=>{const o=btn.textContent;btn.textContent='✓ コピー済み';btn.style.color='var(--green)';setTimeout(()=>{btn.textContent=o;btn.style.color=''},2000)}).catch(()=>alert('コピー失敗'))}
+function doDl(id,name,lang){const c=CS.get(id);if(!c)return;const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:'text/plain'}));a.download=name.replace(/[^\w\-]/g,'_')+'.'+(LE[lang]||'txt');a.click()}
+function openPV(id){const c=CS.get(id);if(!c)return;document.getElementById('pv-frame').srcdoc=c;document.getElementById('pv-modal').classList.add('on')}
+function closePV(){document.getElementById('pv-modal').classList.remove('on');document.getElementById('pv-frame').srcdoc=''}
+function doFb(row,id,good){rateItem(id,good);row.innerHTML=good?'<span style="color:var(--green);font-size:13px">👍 ありがとう！</span>':'<span style="color:var(--pink);font-size:13px">👎 了解！</span>'}
+
+// ══════════════════════════════════════════════════
+// SIDEBAR
+// ══════════════════════════════════════════════════
+let sbOpen2 = true;
+function toggleSb(){sbOpen2=!sbOpen2;document.getElementById('sidebar').classList.toggle('closed',!sbOpen2)}
+function showTab(n,btn){document.querySelectorAll('.stab').forEach(b=>b.classList.remove('on'));document.querySelectorAll('.spanel').forEach(p=>p.classList.remove('on'));btn.classList.add('on');document.getElementById('sp-'+n).classList.add('on')}
+
+function renderSkillSidebar() {
+  const el = document.getElementById('sp-skills');
+  el.innerHTML = '';
+  SKILL_REGISTRY.forEach(s => {
+    const d = document.createElement('div');
+    d.className = 'skill-card' + (s.enabled ? ' enabled' : '');
+    d.innerHTML = `<div class="sk-head"><span class="sk-icon">${s.icon}</span><span class="sk-name">${esc(s.name)}</span>
+      <button class="sk-toggle ${s.enabled?'on':''}" onclick="toggleSkill('${s.id}')"></button></div>
+      <div class="sk-desc">${esc(s.description||'')}</div>
+      <div class="sk-tags">${(s.tags||[]).map(t=>`<span class="sk-tag">${esc(t)}</span>`).join('')}</div>
+      ${s.source?`<div class="sk-source">📦 GitHub</div>`:''}`;
+    el.append(d);
+  });
+}
+
+function renderMem() {
+  const el = document.getElementById('sp-mem');
+  el.innerHTML = '';
+  const m = loadMem();
+  if (!m.learned.length) {
+    const d = document.createElement('div');d.className='s-empty';d.textContent='まだ学習していません。\n生成すると自動追加されます。';el.append(d);return;
+  }
+  m.learned.forEach(p => {
+    const d = document.createElement('div');d.className='scard';
+    d.innerHTML=`<button class="sc-del" onclick="delLearned('${p.id}');event.stopPropagation()">×</button>
+      <div class="sc-n">${esc(p.name)}</div><div class="sc-l">${LL[p.language]||p.language||''}</div>
+      <div class="sc-k">${(p.keywords||[]).slice(0,4).join(' / ')}</div>
+      <div class="sc-s">${p.uses}回 · ${p.added}</div>`;
+    d.onclick=()=>{document.getElementById('inp').value=(p.keywords?.[0]||p.name)+'を作って';document.getElementById('inp').focus()};
+    el.append(d);
+  });
+}
+
+function renderAPIPanel() {
+  const el = document.getElementById('sp-api');
+  el.innerHTML = '';
+  [
+    {title:'window.KaiAI — 使用例',code:`// コード生成
+const r = await KaiAI.generate({
+  topic: 'Todoアプリ'  // language自動判定
+});
+
+// スキル呼び出し
+KaiAI.skillCall('math', '2x+3=7');
+KaiAI.skillCall('shiritori', 'スタート');
+
+// スキル登録
+KaiAI.registerSkill({ id:'myskill', ... });`},
+    {title:'PostMessage API',code:`iframe.contentWindow.postMessage({
+  type: 'KAI_REQUEST',
+  action: 'generate',
+  payload: { topic: 'タイマー' },
+  id: '001'
+}, '*');`},
+  ].forEach(s=>{
+    const t=document.createElement('div');t.className='api-ttl';t.textContent=s.title;
+    const c=document.createElement('pre');c.className='api-blk';c.textContent=s.code;
+    const b=document.createElement('button');b.className='copy-api';b.textContent='コピー';
+    b.onclick=()=>navigator.clipboard.writeText(s.code).then(()=>{b.textContent='✓';setTimeout(()=>b.textContent='コピー',1800)});
+    el.append(t,c,b);
+  });
+}
+
+// ── SKILL MANAGER MODAL ──
+function openSKModal(){renderSKModal();document.getElementById('sk-modal').classList.add('on')}
+function closeSKModal(){document.getElementById('sk-modal').classList.remove('on')}
+
+function renderSKModal() {
+  const el = document.getElementById('sk-modal-body');
+  el.innerHTML = '';
+
+  SKILL_REGISTRY.forEach(s => {
+    const d = document.createElement('div');
+    d.className = 'sk-modal-card' + (s.enabled ? ' enabled' : '');
+    d.innerHTML = `<div class="skm-head">
+      <span class="skm-icon">${s.icon}</span>
+      <span class="skm-name">${esc(s.name)}</span>
+      <button class="skm-toggle ${s.enabled?'on':''}" onclick="toggleSkill('${s.id}');renderSKModal()"></button>
+      ${!s.builtin?`<button class="skm-del-btn" onclick="removeSkill('${s.id}')">削除</button>`:''}
+    </div>
+    <div class="skm-desc">${esc(s.description||'')}</div>
+    <div class="skm-tags">${(s.tags||[]).map(t=>`<span class="skm-tag">${esc(t)}</span>`).join('')}</div>
+    ${s.source?`<div style="font-size:10px;color:var(--dim);margin-top:5px;font-family:var(--mono)">📦 ${esc(s.source)}</div>`:''}`;
+    el.append(d);
+  });
+
+  // GitHub import section
+  const gh = document.createElement('div');
+  gh.className = 'gh-section';
+  gh.innerHTML = `<h4>🐙 GITHUB からスキルを追加</h4>
+    <input class="gh-inp" id="gh-url-inp" placeholder="https://github.com/user/repo/blob/main/skill.json" type="url">
+    <button class="gh-imp-btn" onclick="doImport()">インポート</button>
+    <div id="gh-status"></div>
+    <div style="margin-top:8px;font-size:10px;color:var(--dim);line-height:1.7">
+    対応フォーマット:<br>
+    • JSON: <code style="font-size:9px">{id,name,icon,description,tags,keywords,response}</code><br>
+    • JS: <code style="font-size:9px">const skill = {id, name, handler: ...}</code>
+    </div>`;
+  el.append(gh);
+}
+
+async function doImport() {
+  const url = document.getElementById('gh-url-inp')?.value?.trim();
+  if (!url) { setGHStatus('URLを入力してください', 'var(--pink)'); return; }
+  await importFromGitHub(url);
+}
+
+// ══════════════════════════════════════════════════
+// EXTERNAL API
+// ══════════════════════════════════════════════════
+window.KaiAI = {
+  version: VER,
+  generate: (opt={}) => Promise.resolve(genCode(opt.topic||'App', inferLang(opt.topic||''), opt.topic||'')),
+  registerSkill: (s) => { registerSkill(s); return {ok:true}; },
+  skillCall: (id, input) => {
+    const s = SKILL_REGISTRY.get(id);
+    if (!s || !s.enabled) return {ok:false,error:'skill not found or disabled'};
+    return s.handler(input, SESSION);
+  },
+  infer: (t) => inferLang(t),
+  stats: () => { const m=loadMem(); return {learned:m.learned.length, skills:[...SKILL_REGISTRY.values()].length}; }
+};
+window.addEventListener('message', async e => {
+  if (!e.data || e.data.type !== 'KAI_REQUEST') return;
+  const {action,payload,id} = e.data;
+  try {
+    const fn = window.KaiAI[action];
+    if (typeof fn !== 'function') throw new Error('Unknown: '+action);
+    const result = await fn(payload||{});
+    e.source?.postMessage({type:'KAI_RESPONSE',id,result,ok:true},e.origin||'*');
+  } catch(err) {
+    e.source?.postMessage({type:'KAI_RESPONSE',id,error:err.message,ok:false},e.origin||'*');
+  }
+});
+
+// ══════════════════════════════════════════════════
+// WELCOME + INPUT EVENTS
+// ══════════════════════════════════════════════════
+function updateWelcomeSkills() {
+  const el = document.getElementById('w-skills');
+  if (!el) return;
+  el.innerHTML = '';
+  SKILL_REGISTRY.forEach(s => {
+    if (!s.enabled) return;
+    const sp = document.createElement('span');
+    sp.className = 'w-skill';
+    sp.textContent = s.icon + ' ' + s.name;
+    el.append(sp);
+  });
+}
+
+function resetSess() {
+  SESSION.mode = 'idle'; SESSION.turnCount = 0;
+  Siri.end();
+  setChip('IDLE', '');
+  addAI('↺ リセットしました！\n\n何でも話しかけてください。', ['しりとりしよう','数学の問題を出して','コードを作って','古典を教えて']);
+}
+
+document.getElementById('inp').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
+});
+document.getElementById('inp').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+['pv-modal','sk-modal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', function(e) {
+    if (e.target === this) {
+      this.classList.remove('on');
+      if (id === 'pv-modal') document.getElementById('pv-frame').srcdoc = '';
+    }
+  });
+});
+
+// ══════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════
+(function init() {
+  const chips = ['しりとりしよう！','x²+5x+6=0 を解いて','源氏物語について教えて','ログインフォームを作って','小論文の書き方','5C3を計算して','こんにちは！','二次方程式を出して'];
+  const el = document.getElementById('w-chips');
+  chips.forEach(c => {
+    const b = document.createElement('button'); b.className = 'w-chip'; b.textContent = c;
+    b.onclick = () => { document.getElementById('inp').value = c; doSend(); };
+    el.append(b);
+  });
+  updateWelcomeSkills();
+  renderSkillSidebar();
+  renderMem();
+  renderAPIPanel();
+  console.log(`%cカイ AI v${VER} 起動`, 'color:#4f8ef7;font-weight:700;font-size:14px');
+  console.log('%cスキル一覧:', 'color:#1ed98a', [...SKILL_REGISTRY.keys()]);
+})();
+</script>
+</body>
+</html>
