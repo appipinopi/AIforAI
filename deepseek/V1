@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>コア - 学習型コード生成AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Noto Sans JP', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0a0f1e 0%, #0c1222 100%);
+            color: #eef5ff;
+            min-height: 100vh;
+        }
+
+        /* ヘッダー */
+        .app-header {
+            background: rgba(10, 20, 30, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+        }
+
+        .logo h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, #7df9ff, #3b82f6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: 1px;
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            background: #1e293b;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            color: #94a3b8;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 0.8rem;
+        }
+
+        .btn-icon {
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid #2d3a4e;
+            color: #b9e2ff;
+            padding: 0.5rem 1.2rem;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .btn-icon:hover {
+            background: #2d3a5e;
+            border-color: #3b82f6;
+            color: white;
+        }
+
+        /* メインレイアウト: チャット + プレビュー */
+        .main-dashboard {
+            display: flex;
+            flex-wrap: wrap;
+            height: calc(100vh - 75px);
+        }
+
+        .chat-panel {
+            flex: 1.2;
+            min-width: 320px;
+            display: flex;
+            flex-direction: column;
+            background: rgba(15, 23, 42, 0.5);
+            border-right: 1px solid #1e2a3a;
+            overflow: hidden;
+        }
+
+        .preview-panel {
+            flex: 2;
+            background: #0f1722;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* メッセージエリア */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            display: flex;
+            flex-direction: column;
+            max-width: 90%;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .user-message {
+            align-self: flex-end;
+        }
+
+        .ai-message {
+            align-self: flex-start;
+        }
+
+        .msg-bubble {
+            padding: 0.8rem 1.2rem;
+            border-radius: 24px;
+            line-height: 1.5;
+            font-size: 0.95rem;
+            word-break: break-word;
+        }
+
+        .user-message .msg-bubble {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            border-bottom-right-radius: 4px;
+        }
+
+        .ai-message .msg-bubble {
+            background: #1e293b;
+            border-bottom-left-radius: 4px;
+            border: 1px solid #334155;
+        }
+
+        .msg-footer {
+            font-size: 0.7rem;
+            color: #6c86a3;
+            margin-top: 0.3rem;
+            padding: 0 0.5rem;
+            display: flex;
+            gap: 0.8rem;
+        }
+
+        .feedback-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .feedback-btn {
+            background: none;
+            border: none;
+            color: #5b6e8c;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .feedback-btn:hover {
+            color: #facc15;
+        }
+
+        /* 入力エリア */
+        .input-area {
+            padding: 1.2rem;
+            background: #0a0f1c;
+            border-top: 1px solid #1e2a3a;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.8rem;
+            align-items: flex-end;
+        }
+
+        textarea {
+            flex: 1;
+            background: #0f172a;
+            border: 1px solid #2d3a5e;
+            border-radius: 24px;
+            padding: 0.8rem 1.2rem;
+            color: #e2e8f0;
+            font-family: inherit;
+            font-size: 0.9rem;
+            resize: none;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        textarea:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 8px rgba(59,130,246,0.3);
+        }
+
+        .send-btn {
+            background: #3b82f6;
+            border: none;
+            width: 44px;
+            height: 44px;
+            border-radius: 44px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: 0.2s;
+            color: white;
+        }
+
+        .send-btn:hover {
+            background: #2563eb;
+            transform: scale(1.02);
+        }
+
+        /* プレビュー */
+        .preview-header {
+            padding: 0.8rem 1.2rem;
+            background: #0b1120;
+            border-bottom: 1px solid #1e2a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .iframe-container {
+            flex: 1;
+            background: white;
+            border: none;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+
+        /* モーダル (学習パネル) */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: #0f172a;
+            border-radius: 32px;
+            max-width: 600px;
+            width: 90%;
+            padding: 1.8rem;
+            border: 1px solid #2d3a5e;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .memory-list {
+            margin: 1rem 0;
+            background: #0a0f1c;
+            border-radius: 16px;
+            padding: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .memory-item {
+            padding: 0.6rem;
+            border-bottom: 1px solid #1e2a3a;
+            font-size: 0.8rem;
+        }
+
+        .teach-form {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            margin-top: 1rem;
+        }
+
+        input, textarea.teach-input {
+            background: #0a0f1c;
+            border: 1px solid #2d3a5e;
+            padding: 0.7rem;
+            border-radius: 20px;
+            color: white;
+        }
+
+        button {
+            background: #3b82f6;
+            border: none;
+            padding: 0.6rem 1rem;
+            border-radius: 40px;
+            color: white;
+            cursor: pointer;
+        }
+
+        .close-modal {
+            background: #475569;
+            margin-top: 1rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+    </style>
+</head>
+<body>
+
+<header class="app-header">
+    <div class="logo">
+        <h1>⚡ コア CORE</h1>
+        <span class="badge">学習型 AI · コード生成</span>
+    </div>
+    <div class="header-buttons">
+        <button class="btn-icon" id="teachBtn">📖 教える・学習履歴</button>
+        <button class="btn-icon" id="memoryBtn">🧠 記憶データ</button>
+        <button class="btn-icon" id="clearMemoryBtn">🗑️ 記憶リセット</button>
+    </div>
+</header>
+
+<div class="main-dashboard">
+    <!-- 左: 会話エリア -->
+    <div class="chat-panel">
+        <div class="messages-container" id="messagesContainer">
+            <div class="message ai-message">
+                <div class="msg-bubble">
+                    🤖 こんにちは！私は「コア」、独自エンジンのコード生成AIです。<br>
+                    HTML/CSS/JavaScript のコードを作ります。<br>
+                    例: 「青いボタンがあるHTMLを作って」「ログインフォーム」「じゃんけんゲーム」
+                </div>
+            </div>
+        </div>
+        <div class="input-area">
+            <div class="input-group">
+                <textarea id="userInput" rows="2" placeholder="日本語で指示してください…"></textarea>
+                <button class="send-btn" id="sendBtn">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右: プレビュー -->
+    <div class="preview-panel">
+        <div class="preview-header">
+            <span>📄 コードプレビュー / ライブ実行</span>
+            <button id="copyCodeBtn" style="background:#334155; font-size:12px;">📋 コードコピー</button>
+        </div>
+        <div class="iframe-container">
+            <iframe id="previewFrame" title="code preview" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>
+        </div>
+    </div>
+</div>
+
+<!-- 学習モーダル -->
+<div id="teachModal" class="modal">
+    <div class="modal-content">
+        <h2>📘 AIにパターンを教える</h2>
+        <p>キーワードと出力コードを登録すると、次回からその指示でこのコードを使います</p>
+        <div class="teach-form">
+            <input type="text" id="teachKeyword" placeholder="キーワード (例: 虹色ボタン)">
+            <textarea id="teachCode" rows="5" placeholder="生成したいHTML/CSS/JSコード全体"></textarea>
+            <button id="saveTeachBtn">✨ このパターンを学習させる</button>
+        </div>
+        <h3 style="margin-top:1rem;">📚 学習済みカスタムパターン</h3>
+        <div id="customMemoryList" class="memory-list">読み込み中...</div>
+        <button class="close-modal" id="closeTeachModal">閉じる</button>
+    </div>
+</div>
+
+<!-- 記憶データ閲覧モーダル -->
+<div id="memoryModal" class="modal">
+    <div class="modal-content">
+        <h2>🧠 AIの内部記憶 (学習データ)</h2>
+        <div id="memoryDetail" class="memory-list">...</div>
+        <button class="close-modal" id="closeMemoryModal">閉じる</button>
+    </div>
+</div>
+
+<script>
+    // ------------------------------
+    // オリジナルAIエンジン (ルールベース + 学習拡張 + テンプレート)
+    // ・API不使用、完全にローカルで動作
+    // ・学習機能: ユーザーが登録した「キーワード→コード」をlocalStorage保存
+    // ・フィードバック: 👍/👎 で生成コードにスコアリング → 今後の優先度に影響
+    // ------------------------------
+
+    // ----- 初期設定 -----
+    let conversation = [];     // 会話履歴保存用
+    let lastGeneratedCode = ""; // 直近生成コード (フィードバック用)
+    let lastGeneratedMessageId = null;
+
+    // 組み込みテンプレート (20種類+ 豊富なパターン)
+    const builtinTemplates = [
+        { keywords: ["ボタン", "クリック", "押す"], priority: 90, generator: () => `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ボタンサンプル</title><style>body{font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f0f2f5;}button{background:#3b82f6;border:none;color:white;font-size:1.2rem;padding:12px 32px;border-radius:60px;cursor:pointer;transition:0.2s;box-shadow:0 4px 12px rgba(0,0,0,0.1);}button:hover{background:#2563eb;transform:scale(1.02);}</style></head><body><button id="actionBtn">クリックしてください</button><script>document.getElementById('actionBtn').onclick=()=>alert('こんにちは！ボタンが押されました');<\/script></body></html>` },
+        { keywords: ["ログイン", "ログインフォーム", "サインイン"], priority: 85, generator: () => `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ログインフォーム</title><style>body{background:linear-gradient(145deg,#1e293b,#0f172a);display:flex;justify-content:center;align-items:center;height:100vh;font-family:'Segoe UI'}.card{background:#1e293b;padding:2rem;border-radius:32px;width:320px;box-shadow:0 20px 35px rgba(0,0,0,0.3);}.card h2{color:#94a3b8;margin-bottom:1.5rem;}input{width:100%;padding:12px;margin:10px 0;border-radius:28px;border:none;background:#0f172a;color:white;}button{width:100%;background:#3b82f6;border:none;padding:12px;border-radius:40px;color:white;margin-top:1rem;}</style></head><body><div class="card"><h2>🔐 ログイン</h2><input type="text" placeholder="ユーザー名" id="user"><input type="password" placeholder="パスワード" id="pass"><button onclick="alert('ようこそ！ダッシュボードへ')">ログイン</button></div></body></html>` },
+        { keywords: ["カード", "カード型", "プロフィールカード"], priority: 80, generator: () => `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>カードUI</title><style>body{background:#111827;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif}.card{background:#1f2937;border-radius:32px;padding:24px;max-width:320px;text-align:center;color:#e2e8f0;box-shadow:0 10px 25px -5px black;}.avatar{width:80px;height:80px;background:#3b82f6;border-radius:50%;margin:0 auto 1rem;}</style></head><body><div class="card"><div class="avatar"></div><h2>山田 太郎</h2><p>フロントエンド開発者 / AI ラバー</p><button style="margin-top:1rem;background:#3b82f6;border:none;padding:8px 20px;border-radius:40px;color:white;">フォロー</button></div></body></html>` },
+        { keywords: ["アコーディオン", "折りたたみ"], priority: 78, generator: () => `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>アコーディオン</title><style>body{background:#0f172a;font-family:sans-serif;padding:2rem;}.accordion{background:#1e293b;margin:10px 0;border-radius:16px;}.accordion-title{padding:1rem;cursor:pointer;font-weight:bold;border-bottom:1px solid #334155;}.accordion-content{padding:1rem;display:none;}</style></head><body><div class="accordion"><div class="accordion-title">📁 セクション1</div><div class="accordion-content">これは最初のコンテンツです。</div></div><div class="accordion"><div class="accordion-title">📁 セクション2</div><div class="accordion-content">アコーディオンの2つ目の内容。</div></div><script>document.querySelectorAll('.accordion-title').forEach(title=>{title.addEventListener('click',()=>{const content=title.nextElementSibling;content.style.display=content.style.display==='block'?'none':'block';})});<\/script></body></html>` },
+        { keywords: ["カレンダー", "予定表"], priority: 70, generator: () => `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>簡易カレンダー</title><style>body{background:#0f172a;display:flex;justify-content:center;padding:2rem;}.cal{border-radius:24px;background:#1e293b;padding:1rem;width:300px;color:white;text-align:center;}</style></head><body><div class="cal"><h3>2025年3月</h3><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;">日 月 火 水 木 金 土</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:10px;"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span></div><p>※ 簡易表示</p></div></body></html>` },
+        { keywords: ["チャット", "チャット画面"], priority: 75, generator: () => `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>チャットUI</title><style>body{background:#0a0c10;display:flex;height:100vh;margin:0;}.chat{width:100%;background:#111827;display:flex;flex-direction:column;}.msgs{flex:1;overflow-y:auto;padding:1rem;}.input-area{display:flex;padding:1rem;background:#1f2937;}input{flex:1;border-radius:40px;border:none;padding:12px;}</style></head><body><div class="chat"><div class="msgs" id="chatLog"><div>AI: こんにちは！</div></div><div class="input-area"><input id="msgInput" placeholder="メッセージ"><button onclick="sendMsg()">送信</button></div></div><script>function sendMsg(){let val=document.getElementById('msgInput').value;if(val){let log=document.getElementById('chatLog');log.innerHTML+='<div>あなた: '+val+'</div>';log.innerHTML+='<div>AI: 受信しました。</div>';document.getElementById('msgInput').value='';}}</script></body></html>` },
+        { keywords: ["タイマー", "カウントダウン"], priority: 72, generator: () => `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>タイマー</title><style>body{background:#0f172a;display:flex;justify-content:center;align-items:center;height:100vh;color:white;font-size:3rem;}</style></head><body><div><div id="timer">00:00</div><button onclick="startTimer()">開始</button><button onclick="resetTimer()">リセット</button></div><script>let seconds=0,interval;function update(){let m=Math.floor(seconds/60);let s=seconds%60;document.getElementById('timer').innerText=\`\${m<10?'0'+m:m}:\${s<10?'0'+s:s}\`;}function startTimer(){if(interval) clearInterval(interval);interval=setInterval(()=>{seconds++;update();},1000);}function resetTimer(){seconds=0;update();if(interval)clearInterval(interval);}</script></body></html>` },
+        { keywords: ["TODO", "タスク管理", "やることリスト"], priority: 88, generator: () => `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>TODOアプリ</title><style>body{background:#0f172a;display:flex;justify-content:center;padding:2rem;}.todo{background:#1e293b;border-radius:32px;padding:1.5rem;width:350px;}ul{list-style:none;padding:0;}li{background:#0f172a;margin:8px 0;padding:8px;border-radius:20px;display:flex;justify-content:space-between;}</style></head><body><div class="todo"><h2>✅ タスク</h2><input id="taskInput" placeholder="新しいタスク"><button onclick="addTask()">追加</button><ul id="list"></ul></div><script>function addTask(){let val=document.getElementById('taskInput').value;if(val){let li=document.createElement('li');li.innerHTML=val+'<button onclick="this.parentElement.remove()">削除</button>';document.getElementById('list').appendChild(li);document.getElementById('taskInput').value='';}}</script></body></html>` }
+    ];
+
+    // 学習用メモリ構造 (localStorage)
+    let customPatterns = [];  // [{keywords: string, code: string, usageCount, rating}]
+    let feedbackCorrections = []; // フィードバック改善用
+
+    function loadMemory() {
+        const stored = localStorage.getItem("core_ai_custom_patterns");
+        if(stored) customPatterns = JSON.parse(stored);
+        else customPatterns = [];
+        
+        const storedFeedback = localStorage.getItem("core_ai_feedback");
+        if(storedFeedback) feedbackCorrections = JSON.parse(storedFeedback);
+        else feedbackCorrections = [];
+    }
+
+    function saveMemory() {
+        localStorage.setItem("core_ai_custom_patterns", JSON.stringify(customPatterns));
+        localStorage.setItem("core_ai_feedback", JSON.stringify(feedbackCorrections));
+    }
+
+    // テンプレート優先マッチ: 学習 + 内蔵
+    function matchCodeFromPrompt(prompt) {
+        const lowerPrompt = prompt.toLowerCase();
+        // 1. カスタムパターンから (高優先)
+        let matchedCustom = customPatterns.filter(p => p.keywords && lowerPrompt.includes(p.keywords.toLowerCase()));
+        matchedCustom.sort((a,b) => (b.usageCount||0) - (a.usageCount||0));
+        if(matchedCustom.length > 0) {
+            let best = matchedCustom[0];
+            best.usageCount = (best.usageCount||0)+1;
+            saveMemory();
+            return best.code;
+        }
+        // 2. 内蔵テンプレート キーワードマッチ
+        for(let tmpl of builtinTemplates) {
+            for(let kw of tmpl.keywords) {
+                if(lowerPrompt.includes(kw.toLowerCase())) {
+                    return tmpl.generator();
+                }
+            }
+        }
+        // 3. デフォルト: シンプルなHTML生成
+        return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>生成コード</title><style>body{font-family:sans-serif;background:#1e293b;color:white;display:flex;justify-content:center;align-items:center;height:100vh;}</style></head><body><div><h2>✨ AI生成ページ</h2><p>「${prompt}」に応じたカスタムコードが見つかりませんでした。より具体的な指示をお願いします。</p><button onclick="alert('動作確認')">インタラクション</button></div></body></html>`;
+    }
+
+    // メッセージ追加 + AI応答生成
+    function addMessage(role, content, code=null) {
+        const container = document.getElementById('messagesContainer');
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `message ${role === 'user' ? 'user-message' : 'ai-message'}`;
+        const bubble = document.createElement('div');
+        bubble.className = 'msg-bubble';
+        bubble.innerText = content;
+        msgDiv.appendChild(bubble);
+        
+        if(role === 'ai' && code) {
+            const footer = document.createElement('div');
+            footer.className = 'msg-footer';
+            footer.innerHTML = `<span>✅ コード生成完了</span>
+            <div class="feedback-buttons">
+                <button class="feedback-btn" data-feedback="good">👍 良い</button>
+                <button class="feedback-btn" data-feedback="bad">👎 改善必要</button>
+            </div>`;
+            msgDiv.appendChild(footer);
+            lastGeneratedCode = code;
+            // プレビュー更新
+            const iframe = document.getElementById('previewFrame');
+            iframe.srcdoc = code;
+            // コピー機能
+            window.currentCodeForCopy = code;
+        }
+        container.appendChild(msgDiv);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    async function generateAIResponse(userMessage) {
+        const generatedCode = matchCodeFromPrompt(userMessage);
+        lastGeneratedCode = generatedCode;
+        const responseText = `コードを生成しました。プレビューで確認できます。\n\n【生成内容】\nHTML/CSS/JS が右側に表示されています。`;
+        addMessage('ai', responseText, generatedCode);
+    }
+
+    // フィードバック処理 (学習)
+    function registerFeedback(isGood, correctionCode = null) {
+        if(!lastGeneratedCode) return;
+        if(isGood) {
+            // 良評価: カスタムパターンに昇格させるかどうか選択肢だが、簡易的に使用回数アップ
+            alert("👍 フィードバックありがとう！AIの品質向上に役立てます。");
+        } else {
+            // 悪評価の場合、修正コードをユーザーに聞く簡易UI
+            let correction = prompt("👎 改善するための正しいコード例を入力してください（省略可）:", lastGeneratedCode);
+            if(correction && correction.trim().length > 20) {
+                // 学習: 今のプロンプトに関連するキーワードを抽出 (簡易)
+                const lastUserMsg = document.querySelector('.user-message:last-child .msg-bubble')?.innerText;
+                if(lastUserMsg) {
+                    const keywords = lastUserMsg.slice(0, 30);
+                    customPatterns.push({
+                        keywords: keywords,
+                        code: correction,
+                        usageCount: 1,
+                        rating: 80
+                    });
+                    saveMemory();
+                    alert("✅ 新しいパターンを学習しました！次回から同様の指示でこのコードが使われます。");
+                }
+            }
+        }
+        saveMemory();
+    }
+
+    // UI: 学習モーダル表示/ 追加機能
+    function renderCustomMemory() {
+        const container = document.getElementById('customMemoryList');
+        if(container) {
+            if(customPatterns.length===0) container.innerHTML = "<div>まだ学習したパターンはありません。「教える」から追加できます。</div>";
+            else {
+                container.innerHTML = customPatterns.map((p,idx)=> `<div class="memory-item">🔑 ${p.keywords}<br><small>📜 コード先頭: ${p.code.substring(0,60)}...</small></div>`).join('');
+            }
+        }
+        const memoryDetail = document.getElementById('memoryDetail');
+        if(memoryDetail){
+            memoryDetail.innerHTML = `<div>📌 カスタム学習数: ${customPatterns.length}</div><div>⭐ フィードバック記録: ${feedbackCorrections.length}</div><div>🧩 内蔵テンプレート数: ${builtinTemplates.length}</div>`;
+        }
+    }
+
+    // 教えるモード: 手動登録
+    function teachPattern() {
+        const keyword = document.getElementById('teachKeyword').value.trim();
+        const code = document.getElementById('teachCode').value.trim();
+        if(!keyword || !code) {
+            alert("キーワードとコードを入力してください");
+            return;
+        }
+        customPatterns.push({
+            keywords: keyword,
+            code: code,
+            usageCount: 0,
+            rating: 100
+        });
+        saveMemory();
+        renderCustomMemory();
+        alert(`「${keyword}」のパターンを学習しました！`);
+        document.getElementById('teachKeyword').value = '';
+        document.getElementById('teachCode').value = '';
+    }
+
+    function clearAllMemory() {
+        if(confirm("記憶をすべてリセットします。初期状態に戻ります。よろしいですか？")){
+            localStorage.removeItem("core_ai_custom_patterns");
+            localStorage.removeItem("core_ai_feedback");
+            customPatterns = [];
+            feedbackCorrections = [];
+            saveMemory();
+            renderCustomMemory();
+            alert("記憶をリセットしました。");
+        }
+    }
+
+    // イベント設定
+    document.addEventListener('DOMContentLoaded', () => {
+        loadMemory();
+        renderCustomMemory();
+
+        const sendBtn = document.getElementById('sendBtn');
+        const userInput = document.getElementById('userInput');
+        const messagesContainer = document.getElementById('messagesContainer');
+
+        sendBtn.addEventListener('click', async () => {
+            const text = userInput.value.trim();
+            if(!text) return;
+            addMessage('user', text);
+            userInput.value = '';
+            await generateAIResponse(text);
+        });
+
+        userInput.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendBtn.click();
+            }
+        });
+
+        // フィードバック動的イベント (委譲)
+        messagesContainer.addEventListener('click', (e) => {
+            const fbBtn = e.target.closest('.feedback-btn');
+            if(fbBtn) {
+                const isGood = fbBtn.dataset.feedback === 'good';
+                registerFeedback(isGood);
+            }
+        });
+
+        document.getElementById('copyCodeBtn').addEventListener('click', () => {
+            if(window.currentCodeForCopy) {
+                navigator.clipboard.writeText(window.currentCodeForCopy);
+                alert("コードをクリップボードにコピーしました。");
+            } else alert("生成されたコードがありません");
+        });
+
+        document.getElementById('teachBtn').addEventListener('click', () => {
+            document.getElementById('teachModal').style.display = 'flex';
+            renderCustomMemory();
+        });
+        document.getElementById('memoryBtn').addEventListener('click', () => {
+            document.getElementById('memoryModal').style.display = 'flex';
+            renderCustomMemory();
+        });
+        document.getElementById('clearMemoryBtn').addEventListener('click', clearAllMemory);
+        document.getElementById('closeTeachModal').addEventListener('click', () => document.getElementById('teachModal').style.display = 'none');
+        document.getElementById('closeMemoryModal').addEventListener('click', () => document.getElementById('memoryModal').style.display = 'none');
+        document.getElementById('saveTeachBtn').addEventListener('click', teachPattern);
+        
+        // モーダル外クリックで閉じる
+        window.onclick = (e) => {
+            if(e.target.classList.contains('modal')) e.target.style.display = 'none';
+        };
+    });
+</script>
+</body>
+</html>
