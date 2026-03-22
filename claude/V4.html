@@ -1,0 +1,1944 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>カイ AI v4</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ===== RESET ===== */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html, body { height:100%; overflow:hidden; }
+
+/* ===== VARIABLES ===== */
+:root {
+  --bg:     #07090f;
+  --s1:     #0c0e18;
+  --s2:     #111520;
+  --s3:     #161b2a;
+  --bd:     #1d2438;
+  --bd2:    #26304a;
+  --blue:   #3b82f6;
+  --green:  #10b981;
+  --pink:   #f43f5e;
+  --yellow: #f59e0b;
+  --text:   #cbd5e1;
+  --dim:    #4b5a72;
+  --dim2:   #6b7a96;
+  --mono:   'JetBrains Mono', monospace;
+  --sans:   'Noto Sans JP', sans-serif;
+  --r:      8px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== HEADER ===== */
+#header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--s1);
+  border-bottom: 1px solid var(--bd);
+  flex-shrink: 0;
+  z-index: 50;
+}
+.logo {
+  font-family: var(--mono);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  background: linear-gradient(90deg, var(--blue), var(--green));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.ver {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--dim);
+  border: 1px solid var(--bd);
+  padding: 2px 6px;
+  border-radius: 20px;
+  letter-spacing: 1px;
+}
+.dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+#mode-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 9px;
+  border-radius: 20px;
+  letter-spacing: 1px;
+  border: 1px solid var(--bd);
+  color: var(--dim2);
+}
+#mode-badge.gathering { color:var(--yellow); border-color:var(--yellow); }
+#mode-badge.ready     { color:var(--green);  border-color:var(--green); }
+.hbtns { display:flex; gap:6px; margin-left:auto; }
+.hbtn {
+  padding: 5px 11px;
+  border: 1px solid var(--bd);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dim2);
+  font-size: 11px;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: all .2s;
+  letter-spacing: .3px;
+}
+.hbtn:hover { border-color:var(--blue); color:var(--blue); }
+
+/* ===== LAYOUT ===== */
+#main { display:flex; flex:1; overflow:hidden; }
+
+/* ===== SIDEBAR ===== */
+#sidebar {
+  width: 244px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--bd);
+  background: var(--s1);
+  display: flex;
+  flex-direction: column;
+  transition: width .25s ease, opacity .25s;
+  overflow: hidden;
+}
+#sidebar.closed { width:0; opacity:0; }
+.stabs { display:flex; border-bottom:1px solid var(--bd); flex-shrink:0; }
+.stab {
+  flex:1; padding:8px 2px;
+  border:none; background:none;
+  font-size:10px; font-family:var(--sans);
+  letter-spacing:.5px; text-transform:uppercase;
+  color:var(--dim); cursor:pointer;
+  border-bottom:2px solid transparent;
+  transition:all .2s;
+}
+.stab:hover { color:var(--text); }
+.stab.on { color:var(--blue); border-bottom-color:var(--blue); }
+.spanel {
+  display:none; flex:1; overflow-y:auto;
+  padding:10px; flex-direction:column; gap:6px;
+  scrollbar-width:thin; scrollbar-color:var(--bd) transparent;
+}
+.spanel.on { display:flex; }
+
+/* sidebar cards */
+.scard {
+  padding:9px 11px; border-radius:7px;
+  border:1px solid var(--bd); background:var(--s2);
+  cursor:pointer; transition:all .2s;
+}
+.scard:hover { border-color:var(--blue); background:rgba(59,130,246,.06); }
+.sc-name { font-size:12px; font-weight:500; margin-bottom:2px; }
+.sc-lang { font-family:var(--mono); font-size:9px; color:var(--blue); letter-spacing:1px; }
+.sc-kw   { font-size:10px; color:var(--dim); margin-top:2px; }
+.sc-del  { float:right; background:none; border:none; color:var(--dim); cursor:pointer; font-size:13px; }
+.sc-del:hover { color:var(--pink); }
+.sc-score { font-size:10px; color:var(--yellow); margin-top:3px; }
+.s-empty { color:var(--dim); font-size:11px; text-align:center; padding:20px 0; line-height:1.8; }
+
+/* API docs */
+.api-block {
+  background:var(--bg); border:1px solid var(--bd);
+  border-radius:6px; padding:10px;
+  font-family:var(--mono); font-size:10px;
+  color:#6fa3d8; line-height:1.6;
+  white-space:pre; overflow-x:auto;
+  margin-bottom:6px;
+}
+.api-ttl { font-size:10px; color:var(--dim2); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+.api-note { font-size:11px; color:var(--dim); line-height:1.7; margin-bottom:10px; }
+.copy-api {
+  width:100%; padding:5px; border-radius:5px;
+  border:1px solid var(--bd); background:transparent;
+  color:var(--dim2); font-size:11px; cursor:pointer;
+  font-family:var(--sans); transition:all .2s;
+  margin-bottom:14px;
+}
+.copy-api:hover { border-color:var(--blue); color:var(--blue); }
+
+/* ===== CHAT AREA ===== */
+#chat-wrap { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+
+/* progress bar */
+#progress {
+  display:none; flex-shrink:0;
+  padding:7px 18px;
+  background:var(--s1); border-bottom:1px solid var(--bd);
+}
+#progress.on { display:block; }
+.pg-row { display:flex; align-items:center; gap:10px; margin-bottom:5px; }
+.pg-lbl { font-family:var(--mono); font-size:10px; color:var(--yellow); flex-shrink:0; }
+.pg-bar { flex:1; height:3px; background:var(--bd); border-radius:99px; overflow:hidden; }
+.pg-fill { height:100%; background:linear-gradient(90deg,var(--blue),var(--green)); border-radius:99px; transition:width .4s ease; }
+.pg-steps { display:flex; gap:5px; }
+.pg-step { flex:1; height:3px; border-radius:99px; background:var(--bd); transition:background .3s; }
+.pg-step.done   { background:var(--green); }
+.pg-step.active { background:var(--yellow); box-shadow:0 0 5px var(--yellow); }
+
+/* messages */
+#chat {
+  flex:1; overflow-y:auto; padding:18px;
+  display:flex; flex-direction:column; gap:13px;
+  scrollbar-width:thin; scrollbar-color:var(--bd) transparent;
+}
+#chat::-webkit-scrollbar { width:4px; }
+#chat::-webkit-scrollbar-thumb { background:var(--bd); border-radius:2px; }
+.msg { display:flex; gap:9px; opacity:0; animation:fadeup .25s ease forwards; }
+@keyframes fadeup { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:translateY(0)} }
+.msg.user { flex-direction:row-reverse; align-self:flex-end; max-width:72%; }
+.msg.ai   { align-self:flex-start; max-width:95%; }
+.ava {
+  width:27px; height:27px; border-radius:6px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-size:9px; font-weight:700;
+  flex-shrink:0; letter-spacing:.5px;
+}
+.msg.user .ava { background:var(--blue); color:#000; }
+.msg.ai   .ava { background:linear-gradient(135deg,#1d4ed8,#065f46); color:#fff; }
+.bub {
+  padding:10px 14px; border-radius:10px;
+  font-size:13.5px; line-height:1.75;
+}
+.msg.user .bub {
+  background:rgba(59,130,246,.18);
+  border:1px solid rgba(59,130,246,.28);
+  border-bottom-right-radius:3px;
+}
+.msg.ai .bub {
+  background:var(--s2);
+  border:1px solid var(--bd);
+  border-bottom-left-radius:3px;
+}
+
+/* ===== CODE BLOCK ===== */
+.code-wrap {
+  margin-top:10px;
+  border:1px solid var(--bd);
+  border-radius:8px;
+  overflow:hidden;
+}
+.code-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:6px 11px;
+  background:rgba(255,255,255,.03);
+  border-bottom:1px solid var(--bd);
+}
+.code-lang {
+  font-family:var(--mono); font-size:9px; letter-spacing:1px; text-transform:uppercase;
+}
+.code-lang.html       { color:#f97316; }
+.code-lang.css        { color:#a78bfa; }
+.code-lang.javascript { color:#fbbf24; }
+.code-lang.typescript { color:#60a5fa; }
+.code-lang.python     { color:#4ade80; }
+.code-lang.rust       { color:#fb923c; }
+.code-lang.c          { color:#94a3b8; }
+.code-lang.cpp        { color:#38bdf8; }
+.code-lang.csharp     { color:#c084fc; }
+.code-lang.java       { color:#fcd34d; }
+.code-lang.pyscript   { color:#6ee7b7; }
+.code-btns { display:flex; gap:5px; }
+.cbtn {
+  padding:2px 9px; border-radius:4px;
+  border:1px solid var(--bd);
+  background:transparent; color:var(--dim2);
+  font-size:10px; cursor:pointer;
+  font-family:var(--sans); transition:all .2s;
+}
+.cbtn:hover               { border-color:var(--blue);   color:var(--blue); }
+.cbtn.preview:hover       { border-color:var(--green);  color:var(--green); }
+.cbtn.download:hover      { border-color:var(--yellow); color:var(--yellow); }
+
+/* *** KEY FIX: code textarea — CSS cannot bleed through *** */
+.code-area {
+  display:block; width:100%;
+  background:#06080f;
+  color:#7ea8c4;
+  font-family:var(--mono);
+  font-size:11.5px;
+  line-height:1.62;
+  padding:13px;
+  border:none; outline:none; resize:none;
+  max-height:300px;
+  overflow-y:auto;
+  white-space:pre;
+  scrollbar-width:thin;
+  scrollbar-color:var(--bd) transparent;
+  /* prevent CSS from generated code ever touching parent */
+  all: unset;
+  display:block; width:100%;
+  background:#06080f; color:#7ea8c4;
+  font-family:var(--mono); font-size:11.5px; line-height:1.62;
+  padding:13px; border:none; outline:none;
+  max-height:300px; overflow-y:auto;
+  white-space:pre; overflow-x:auto;
+  cursor:text;
+}
+
+/* feedback */
+.fb-row { display:flex; align-items:center; gap:7px; margin-top:9px; padding-top:8px; border-top:1px solid var(--bd); }
+.fb-lbl { font-size:11px; color:var(--dim); }
+.fbbtn {
+  padding:2px 11px; border-radius:20px;
+  border:1px solid var(--bd);
+  background:transparent; font-size:12px; cursor:pointer; transition:all .2s;
+}
+.fbbtn.g:hover { background:rgba(16,185,129,.12); border-color:var(--green); }
+.fbbtn.b:hover { background:rgba(244,63,94,.12);  border-color:var(--pink); }
+
+/* GitHub refs */
+.gh-refs { margin-top:8px; display:flex; flex-direction:column; gap:5px; }
+.gh-ref {
+  display:flex; align-items:center; gap:8px;
+  padding:7px 11px; border-radius:7px;
+  border:1px solid var(--bd); background:var(--s3);
+  text-decoration:none; color:var(--text);
+  cursor:pointer; transition:all .2s;
+}
+.gh-ref:hover { border-color:var(--green); }
+.gh-info { flex:1; min-width:0; }
+.gh-name { font-size:12px; font-weight:500; color:var(--green); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.gh-desc { font-size:10px; color:var(--dim2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:1px; }
+.gh-stars { font-family:var(--mono); font-size:9px; color:var(--yellow); flex-shrink:0; }
+
+/* thinking dots */
+.dots { display:flex; gap:4px; padding:11px 14px; background:var(--s2); border:1px solid var(--bd); border-radius:10px; border-bottom-left-radius:3px; width:fit-content; }
+.dots span { width:5px; height:5px; border-radius:50%; background:var(--blue); animation:dt 1.4s ease-in-out infinite; }
+.dots span:nth-child(2) { animation-delay:.18s; }
+.dots span:nth-child(3) { animation-delay:.36s; }
+@keyframes dt { 0%,80%,100%{opacity:.15;transform:scale(.7)} 40%{opacity:1;transform:scale(1)} }
+
+/* ===== WELCOME ===== */
+#welcome {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  gap:16px; padding:30px; text-align:center;
+}
+.w-icon {
+  font-family:var(--mono); font-size:46px;
+  background:linear-gradient(135deg, var(--blue), var(--green));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  animation:glow 3s ease-in-out infinite;
+}
+@keyframes glow {
+  0%,100%{filter:drop-shadow(0 0 12px rgba(59,130,246,.35))}
+  50%{filter:drop-shadow(0 0 28px rgba(16,185,129,.7))}
+}
+.w-title { font-family:var(--mono); font-size:17px; letter-spacing:4px; }
+.w-sub { font-size:13px; color:var(--dim2); max-width:400px; line-height:1.8; }
+.w-langs { display:flex; flex-wrap:wrap; gap:5px; justify-content:center; }
+.w-lang {
+  padding:3px 10px; border-radius:20px;
+  border:1px solid var(--bd); background:var(--s2);
+  font-family:var(--mono); font-size:9px; color:var(--dim2); letter-spacing:.5px;
+}
+.w-sugs { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; max-width:520px; }
+.w-sug {
+  padding:6px 13px; border-radius:20px;
+  border:1px solid var(--bd); background:var(--s2);
+  color:var(--dim2); font-size:12px; cursor:pointer; transition:all .2s;
+}
+.w-sug:hover { border-color:var(--blue); color:var(--blue); background:rgba(59,130,246,.07); }
+
+/* ===== INPUT ===== */
+#input-area {
+  padding:13px 17px;
+  border-top:1px solid var(--bd);
+  background:var(--s1); flex-shrink:0;
+}
+#input-box {
+  display:flex; gap:9px; align-items:flex-end;
+  background:var(--s2); border:1px solid var(--bd);
+  border-radius:10px; padding:9px 13px; transition:border .2s;
+}
+#input-box:focus-within { border-color:var(--blue); }
+#user-input {
+  flex:1; background:none; border:none; outline:none;
+  color:var(--text); font-family:var(--sans); font-size:14px;
+  resize:none; max-height:120px; line-height:1.6;
+}
+#user-input::placeholder { color:var(--dim); }
+#send-btn {
+  width:35px; height:35px; border-radius:7px;
+  border:none;
+  background:linear-gradient(135deg, var(--blue), #1d4ed8);
+  color:#fff; cursor:pointer; font-size:14px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .2s;
+}
+#send-btn:hover  { filter:brightness(1.15); transform:scale(1.06); }
+#send-btn:active { transform:scale(.95); }
+#send-btn:disabled { opacity:.3; cursor:not-allowed; transform:none; filter:none; }
+.input-hint { font-size:10px; color:var(--dim); margin-top:5px; text-align:center; font-family:var(--mono); letter-spacing:.3px; }
+
+/* ===== MODALS ===== */
+.overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,.82); backdrop-filter:blur(7px);
+  z-index:200; align-items:center; justify-content:center;
+}
+.overlay.on { display:flex; }
+@keyframes min { from{transform:scale(.93);opacity:0} to{transform:scale(1);opacity:1} }
+.m-inner {
+  background:var(--s1); border:1px solid var(--bd);
+  border-radius:var(--r); overflow:hidden;
+  animation:min .2s ease;
+}
+.m-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:9px 15px; border-bottom:1px solid var(--bd);
+}
+.m-title { font-family:var(--mono); font-size:12px; color:var(--green); }
+.m-close { background:none; border:none; color:var(--dim); font-size:20px; cursor:pointer; transition:color .2s; line-height:1; }
+.m-close:hover { color:var(--pink); }
+
+/* preview */
+#prev-modal .m-inner { width:93vw; height:87vh; display:flex; flex-direction:column; }
+#prev-frame { flex:1; border:none; background:#fff; }
+
+/* teach */
+#teach-modal .m-inner { width:460px; max-width:95vw; }
+.teach-body { padding:15px; display:flex; flex-direction:column; gap:11px; }
+.teach-body label { font-size:10px; color:var(--dim); display:block; margin-bottom:3px; letter-spacing:.5px; text-transform:uppercase; }
+.teach-body input,
+.teach-body select,
+.teach-body textarea {
+  width:100%; padding:8px 11px;
+  background:var(--s2); border:1px solid var(--bd);
+  border-radius:7px; color:var(--text);
+  font-family:var(--sans); font-size:13px;
+  outline:none; transition:border .2s;
+}
+.teach-body textarea { height:130px; resize:vertical; font-family:var(--mono); font-size:11px; line-height:1.6; }
+.teach-body input:focus,
+.teach-body select:focus,
+.teach-body textarea:focus { border-color:var(--blue); }
+.m-foot { display:flex; gap:7px; justify-content:flex-end; padding:11px 15px; border-top:1px solid var(--bd); }
+.m-btn { padding:7px 18px; border-radius:7px; border:none; font-size:13px; cursor:pointer; font-family:var(--sans); transition:all .2s; }
+.m-btn.save   { background:var(--green); color:#000; font-weight:700; }
+.m-btn.save:hover { background:#0ea570; }
+.m-btn.cancel { background:var(--bd); color:var(--dim2); }
+.m-btn.cancel:hover { color:var(--text); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <span class="logo">カイ AI</span>
+  <span class="ver">v4.0</span>
+  <span class="dot"></span>
+  <span id="mode-badge">IDLE</span>
+  <div class="hbtns">
+    <button class="hbtn" onclick="toggleSidebar()">サイドバー</button>
+    <button class="hbtn" onclick="openTeach()">＋ 教える</button>
+    <button class="hbtn" onclick="resetSession()">↺ リセット</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="stabs">
+      <button class="stab on"  onclick="showTab('tmpl',this)">テンプレ</button>
+      <button class="stab"     onclick="showTab('mem',this)">メモリ</button>
+      <button class="stab"     onclick="showTab('api',this)">API</button>
+    </div>
+    <div class="spanel on" id="sp-tmpl"></div>
+    <div class="spanel"    id="sp-mem"></div>
+    <div class="spanel"    id="sp-api"></div>
+  </div>
+
+  <!-- CHAT -->
+  <div id="chat-wrap">
+
+    <!-- progress -->
+    <div id="progress">
+      <div class="pg-row">
+        <span class="pg-lbl" id="pg-lbl">STEP 1/5</span>
+        <div class="pg-bar"><div class="pg-fill" id="pg-fill" style="width:0%"></div></div>
+      </div>
+      <div class="pg-steps">
+        <div class="pg-step active" id="ps0"></div>
+        <div class="pg-step"        id="ps1"></div>
+        <div class="pg-step"        id="ps2"></div>
+        <div class="pg-step"        id="ps3"></div>
+        <div class="pg-step"        id="ps4"></div>
+      </div>
+    </div>
+
+    <!-- messages -->
+    <div id="chat">
+      <div id="welcome">
+        <div class="w-icon">⬡</div>
+        <div class="w-title">KAI AI v4</div>
+        <div class="w-sub">9言語対応のコード生成AI。5回のやり取りで要件を整理して最適なコードを生成します。</div>
+        <div class="w-langs" id="w-langs"></div>
+        <div class="w-sugs"  id="w-sugs"></div>
+      </div>
+    </div>
+
+    <!-- input -->
+    <div id="input-area">
+      <div id="input-box">
+        <textarea id="user-input" rows="1" placeholder="何を作りますか？ (Enterで送信 / Shift+Enterで改行)"></textarea>
+        <button id="send-btn" onclick="doSend()">▶</button>
+      </div>
+      <div class="input-hint">ENTER で送信 ／ SHIFT+ENTER で改行</div>
+    </div>
+
+  </div><!-- /chat-wrap -->
+</div><!-- /main -->
+
+<!-- PREVIEW MODAL -->
+<div class="overlay" id="prev-modal">
+  <div class="m-inner">
+    <div class="m-head">
+      <span class="m-title">▶ PREVIEW</span>
+      <button class="m-close" onclick="closePrev()">✕</button>
+    </div>
+    <iframe id="prev-frame"></iframe>
+  </div>
+</div>
+
+<!-- TEACH MODAL -->
+<div class="overlay" id="teach-modal">
+  <div class="m-inner">
+    <div class="m-head">
+      <span class="m-title">📚 パターンを教える</span>
+      <button class="m-close" onclick="closeTeach()">✕</button>
+    </div>
+    <div class="teach-body">
+      <div>
+        <label>キーワード（カンマ区切り）</label>
+        <input id="tk" placeholder="例: グラフ, chart, 円グラフ">
+      </div>
+      <div>
+        <label>名前</label>
+        <input id="tn" placeholder="例: Chart.js グラフ">
+      </div>
+      <div>
+        <label>言語</label>
+        <select id="tl">
+          <option value="html">HTML/CSS/JS</option>
+          <option value="javascript">JavaScript</option>
+          <option value="python">Python</option>
+          <option value="typescript">TypeScript</option>
+          <option value="rust">Rust</option>
+          <option value="c">C</option>
+          <option value="cpp">C++</option>
+          <option value="csharp">C#</option>
+          <option value="java">Java</option>
+          <option value="pyscript">PyScript</option>
+        </select>
+      </div>
+      <div>
+        <label>コード</label>
+        <textarea id="tc" placeholder="コードをここに貼り付け..."></textarea>
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="m-btn cancel" onclick="closeTeach()">キャンセル</button>
+      <button class="m-btn save"   onclick="saveTeach()">保存して学習</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CRITICAL: Every function used by onclick must be on window
+   to avoid "not defined" errors when the page loads.
+   ============================================================ */
+
+// ── constants ──
+const VER = '4.0';
+const MEM_KEY = 'kai_v4';
+const LANG_LABEL = {
+  html:'HTML/CSS/JS', javascript:'JavaScript', typescript:'TypeScript',
+  python:'Python', rust:'Rust', c:'C', cpp:'C++', csharp:'C#',
+  java:'Java', pyscript:'PyScript'
+};
+const LANG_EXT = {
+  html:'html', javascript:'js', typescript:'ts',
+  python:'py', rust:'rs', c:'c', cpp:'cpp', csharp:'cs',
+  java:'java', pyscript:'html'
+};
+const GH_LANG = {
+  html:'html', javascript:'javascript', typescript:'typescript',
+  python:'python', rust:'rust', c:'c', cpp:'c++', csharp:'c%23',
+  java:'java', pyscript:'html'
+};
+
+// Code store: id → full code string (avoids attribute encoding issues)
+const CODE_STORE = new Map();
+
+// ── memory ──
+function loadMem() {
+  try { return JSON.parse(localStorage.getItem(MEM_KEY)) || {learned:[], scores:{}}; }
+  catch(_) { return {learned:[], scores:{}}; }
+}
+function saveMem(m) { try { localStorage.setItem(MEM_KEY, JSON.stringify(m)); } catch(_) {} }
+function addLearned(kw, name, lang, code) {
+  const m = loadMem();
+  m.learned.unshift({ id:'u'+Date.now(), keywords:kw, name, language:lang, code, uses:0, added:new Date().toLocaleDateString('ja') });
+  saveMem(m); renderMem();
+}
+function delLearned(id) {
+  const m = loadMem();
+  m.learned = m.learned.filter(x => x.id !== id);
+  saveMem(m); renderMem();
+}
+function rateItem(id, good) {
+  const m = loadMem();
+  if (!m.scores[id]) m.scores[id] = {g:0,b:0};
+  good ? m.scores[id].g++ : m.scores[id].b++;
+  saveMem(m);
+}
+function getScore(id) {
+  const m = loadMem(), s = m.scores[id];
+  if (!s) return null;
+  const t = s.g + s.b;
+  return t ? Math.round(s.g / t * 100) : null;
+}
+
+// ── language detect ──
+function detectLang(s) {
+  const i = s.toLowerCase();
+  if (/pyscript/.test(i)) return 'pyscript';
+  if (/python|パイソン/.test(i)) return 'python';
+  if (/typescript|タイプスクリプト/.test(i)) return 'typescript';
+  if (/rust|ラスト/.test(i)) return 'rust';
+  if (/c#|csharp|unity/.test(i)) return 'csharp';
+  if (/c\+\+|cpp/.test(i)) return 'cpp';
+  if (/\bc\b|c言語/.test(i)) return 'c';
+  if (/java(?!script)/.test(i)) return 'java';
+  if (/javascript|js\b/.test(i)) return 'javascript';
+  return null;
+}
+
+// ── GitHub search ──
+async function ghSearch(q, lang) {
+  try {
+    const glang = GH_LANG[lang] || '';
+    const url = `https://api.github.com/search/repositories?q=${encodeURIComponent(q.slice(0,40))}+language:${glang}&sort=stars&order=desc&per_page=4`;
+    const r = await fetch(url, {headers:{'Accept':'application/vnd.github.v3+json'}});
+    if (!r.ok) return [];
+    const d = await r.json();
+    return (d.items||[]).slice(0,3).map(x=>({name:x.full_name, desc:x.description||'説明なし', stars:x.stargazers_count, url:x.html_url}));
+  } catch(_) { return []; }
+}
+
+// ══════════════════════════════════════════
+// CODE GENERATORS
+// ══════════════════════════════════════════
+function genHTML(plan) {
+  const t = (plan.topic+' '+plan.features).toLowerCase();
+  const dark = /dark|ダーク/.test((plan.style||'').toLowerCase());
+  const bg = dark ? '#0a0a14' : '#f8fafc';
+  const fg = dark ? '#e2e8f0' : '#1e293b';
+  const card = dark ? '#111827' : '#ffffff';
+  const bd = dark ? '#1e293b' : '#e2e8f0';
+
+  if (/game|ゲーム|quiz|クイズ/.test(t)) {
+    return `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${plan.topic}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{min-height:100vh;background:${bg};color:${fg};display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',sans-serif;padding:20px}
+.card{background:${card};border:1px solid ${bd};border-radius:16px;padding:36px;max-width:440px;width:100%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.08)}
+h1{font-size:22px;font-weight:700;margin-bottom:8px}
+.sub{font-size:13px;color:#64748b;margin-bottom:24px}
+.num{font-size:72px;font-weight:800;color:#3b82f6;font-family:monospace;margin:16px 0}
+.btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.btn{padding:11px 26px;border:none;border-radius:9px;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-p{background:#3b82f6;color:#fff}
+.btn-p:hover{filter:brightness(1.1);transform:translateY(-2px)}
+.btn-s{background:#e2e8f0;color:#1e293b}
+.btn-s:hover{background:#cbd5e1}
+.msg{margin-top:14px;font-size:14px;color:#64748b;min-height:20px}
+</style></head><body>
+<div class="card">
+  <h1>🎮 ${plan.topic}</h1>
+  <div class="sub">${plan.features||'クリックでスコアを増やそう！'}</div>
+  <div class="num" id="sc">0</div>
+  <div class="btns">
+    <button class="btn btn-p" onclick="click_()">クリック！</button>
+    <button class="btn btn-s" onclick="reset_()">リセット</button>
+  </div>
+  <div class="msg" id="msg">ゲームスタート！</div>
+</div>
+<script>
+let s=0,best=0;
+function click_(){s++;document.getElementById('sc').textContent=s;document.getElementById('msg').textContent='スコア: '+s+' (最高: '+best+')';}
+function reset_(){if(s>best)best=s;s=0;document.getElementById('sc').textContent=0;document.getElementById('msg').textContent='リセット！最高: '+best;}
+<\/script></body></html>`;
+  }
+
+  if (/form|フォーム|contact|お問い合わせ|login|ログイン/.test(t)) {
+    return `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${plan.topic}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{min-height:100vh;background:${bg};display:flex;align-items:center;justify-content:center;padding:40px 20px;font-family:'Segoe UI',sans-serif}
+.card{background:${card};border:1px solid ${bd};border-radius:16px;padding:36px;max-width:460px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.08)}
+h2{font-size:21px;font-weight:700;color:${fg};margin-bottom:6px}
+.sub{font-size:13px;color:#64748b;margin-bottom:26px}
+.field{margin-bottom:16px}
+label{display:block;font-size:11px;font-weight:600;color:#475569;margin-bottom:5px;letter-spacing:.5px;text-transform:uppercase}
+input,textarea,select{width:100%;padding:10px 13px;border:2px solid ${bd};border-radius:8px;background:${dark?'#1e293b':'#fff'};color:${fg};font-size:14px;outline:none;transition:border .2s;font-family:inherit}
+input:focus,textarea:focus,select:focus{border-color:#3b82f6}
+textarea{height:100px;resize:vertical}
+.btn{width:100%;padding:12px;background:#3b82f6;border:none;border-radius:9px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:all .3s}
+.btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.ok{display:none;text-align:center;padding:20px;color:#16a34a;font-weight:600;font-size:15px}
+</style></head><body>
+<div class="card">
+  <h2>📋 ${plan.topic}</h2>
+  <div class="sub">${plan.features||'必要事項をご入力ください'}</div>
+  <div id="frm">
+    <div class="field"><label>お名前 *</label><input id="nm" placeholder="山田 太郎" type="text"></div>
+    <div class="field"><label>メールアドレス *</label><input id="em" placeholder="hello@example.com" type="email"></div>
+    <div class="field"><label>件名</label><select><option>お問い合わせ</option><option>サービスについて</option><option>その他</option></select></div>
+    <div class="field"><label>メッセージ *</label><textarea id="ms" placeholder="ご用件をお聞かせください..."></textarea></div>
+    <button class="btn" onclick="sub_()">送信する →</button>
+  </div>
+  <div class="ok" id="ok">✅ 送信完了！ありがとうございます。</div>
+</div>
+<script>
+function sub_(){
+  if(!document.getElementById('nm').value||!document.getElementById('em').value){alert('必須項目を入力してください');return;}
+  document.getElementById('frm').style.display='none';
+  document.getElementById('ok').style.display='block';
+}
+<\/script></body></html>`;
+  }
+
+  if (/dashboard|ダッシュボード|管理|admin/.test(t)) {
+    return `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${plan.topic}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:${dark?'#07090f':'#f1f5f9'};color:${fg}}
+nav{padding:12px 20px;background:${card};border-bottom:1px solid ${bd};display:flex;align-items:center;gap:10px}
+.nav-logo{font-size:17px;font-weight:700;color:#3b82f6}
+.nav-r{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:#64748b}
+.av{width:30px;height:30px;border-radius:50%;background:#3b82f6;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.main{padding:22px;max-width:1100px;margin:0 auto}
+.page-ttl{font-size:21px;font-weight:700;margin-bottom:4px}
+.page-sub{font-size:13px;color:#64748b;margin-bottom:20px}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-bottom:20px}
+.stat{background:${card};border:1px solid ${bd};border-radius:11px;padding:18px}
+.stat-l{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+.stat-v{font-size:28px;font-weight:700;margin:6px 0 3px}
+.stat-d{font-size:11px}
+.up{color:#22c55e}.dn{color:#ef4444}
+.g2{display:grid;grid-template-columns:2fr 1fr;gap:14px}
+.card{background:${card};border:1px solid ${bd};border-radius:11px;padding:18px}
+.card-ttl{font-size:14px;font-weight:600;margin-bottom:14px}
+.bar-item{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.bar-l{font-size:12px;color:#64748b;width:56px;flex-shrink:0}
+.bar-t{flex:1;height:8px;background:${bd};border-radius:99px;overflow:hidden}
+.bar-f{height:100%;background:linear-gradient(90deg,#3b82f6,#6366f1);border-radius:99px}
+.bar-v{font-size:11px;font-weight:600;width:34px;text-align:right;flex-shrink:0}
+.li{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid ${bd}}
+.li:last-child{border:none}
+.li-icon{width:32px;height:32px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.li-n{font-size:13px;font-weight:500;flex:1}
+.li-v{font-size:13px;font-weight:600;color:#3b82f6}
+@media(max-width:580px){.g2{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
+</style></head><body>
+<nav><div class="nav-logo">📊 ${plan.topic}</div><div class="nav-r">管理者<div class="av">A</div></div></nav>
+<div class="main">
+  <div class="page-ttl">ダッシュボード</div>
+  <div class="page-sub">${new Date().toLocaleDateString('ja-JP')} — リアルタイム</div>
+  <div class="stats">
+    <div class="stat"><div class="stat-l">訪問者</div><div class="stat-v">12,483</div><div class="stat-d up">↑ 12.5%</div></div>
+    <div class="stat"><div class="stat-l">売上</div><div class="stat-v">¥248K</div><div class="stat-d up">↑ 8.1%</div></div>
+    <div class="stat"><div class="stat-l">コンバージョン</div><div class="stat-v">3.8%</div><div class="stat-d dn">↓ 0.4%</div></div>
+    <div class="stat"><div class="stat-l">アクティブ</div><div class="stat-v">1,204</div><div class="stat-d up">↑ 5.2%</div></div>
+  </div>
+  <div class="g2">
+    <div class="card"><div class="card-ttl">📈 流入チャンネル</div>
+      <div class="bar-item"><span class="bar-l">オーガニック</span><div class="bar-t"><div class="bar-f" style="width:72%"></div></div><span class="bar-v">72%</span></div>
+      <div class="bar-item"><span class="bar-l">直接</span><div class="bar-t"><div class="bar-f" style="width:55%"></div></div><span class="bar-v">55%</span></div>
+      <div class="bar-item"><span class="bar-l">SNS</span><div class="bar-t"><div class="bar-f" style="width:38%"></div></div><span class="bar-v">38%</span></div>
+      <div class="bar-item"><span class="bar-l">メール</span><div class="bar-t"><div class="bar-f" style="width:22%"></div></div><span class="bar-v">22%</span></div>
+    </div>
+    <div class="card"><div class="card-ttl">🔥 人気ページ</div>
+      <div class="li"><div class="li-icon" style="background:rgba(59,130,246,.12)">🏠</div><div class="li-n">トップ</div><div class="li-v">4,821</div></div>
+      <div class="li"><div class="li-icon" style="background:rgba(16,185,129,.12)">📦</div><div class="li-n">商品一覧</div><div class="li-v">2,341</div></div>
+      <div class="li"><div class="li-icon" style="background:rgba(245,158,11,.12)">📝</div><div class="li-n">ブログ</div><div class="li-v">1,982</div></div>
+    </div>
+  </div>
+</div></body></html>`;
+  }
+
+  // default web app
+  return `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${plan.topic}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{min-height:100vh;background:${bg};color:${fg};font-family:'Segoe UI',sans-serif}
+nav{padding:14px 22px;background:${card};border-bottom:1px solid ${bd};display:flex;align-items:center}
+.logo{font-size:18px;font-weight:700;color:#3b82f6}
+.main{max-width:760px;margin:0 auto;padding:40px 20px}
+.hero{text-align:center;padding:48px 0 32px}
+.hero h1{font-size:34px;font-weight:800;margin-bottom:12px}
+.hero p{font-size:15px;color:#64748b;max-width:440px;margin:0 auto 26px;line-height:1.75}
+.btn{display:inline-block;padding:12px 28px;background:#3b82f6;color:#fff;border:none;border-radius:9px;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s}
+.btn:hover{filter:brightness(1.1);transform:translateY(-2px);box-shadow:0 8px 22px rgba(59,130,246,.35)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-top:28px}
+.feat{background:${card};border:1px solid ${bd};border-radius:11px;padding:18px}
+.feat-icon{font-size:26px;margin-bottom:9px}
+.feat-title{font-size:14px;font-weight:700;margin-bottom:5px}
+.feat-desc{font-size:12px;color:#64748b;line-height:1.65}
+</style></head><body>
+<nav><span class="logo">✦ ${plan.topic}</span></nav>
+<div class="main">
+  <div class="hero">
+    <h1>${plan.topic}</h1>
+    <p>${plan.features||'あなたのアプリへようこそ。'}</p>
+    <button class="btn" onclick="alert('OK！')">はじめる →</button>
+  </div>
+  <div class="grid">
+    <div class="feat"><div class="feat-icon">⚡</div><div class="feat-title">高速</div><div class="feat-desc">軽量・高速な動作。</div></div>
+    <div class="feat"><div class="feat-icon">🔒</div><div class="feat-title">安全</div><div class="feat-desc">セキュリティ重視の設計。</div></div>
+    <div class="feat"><div class="feat-icon">📱</div><div class="feat-title">レスポンシブ</div><div class="feat-desc">全デバイス対応。</div></div>
+  </div>
+</div></body></html>`;
+}
+
+function genPython(plan) {
+  const t = (plan.topic+' '+plan.features).toLowerCase();
+  if (/flask|api|rest|web|サーバー/.test(t)) return `#!/usr/bin/env python3
+# ${plan.topic} - Flask REST API
+# 実行: pip install flask flask-cors && python app.py
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from datetime import datetime
+import uuid
+
+app = Flask(__name__)
+CORS(app)
+store = {}
+
+@app.get('/health')
+def health():
+    return jsonify({'status':'ok','time':datetime.now().isoformat()})
+
+@app.get('/api/items')
+def list_items():
+    return jsonify({'items':list(store.values()),'total':len(store)})
+
+@app.post('/api/items')
+def create():
+    d = request.json or {}
+    if not d.get('name'):
+        return jsonify({'error':'name required'}), 400
+    item = {'id':str(uuid.uuid4())[:8],'name':d['name'],'value':d.get('value',''),'created':datetime.now().isoformat()}
+    store[item['id']] = item
+    return jsonify(item), 201
+
+@app.get('/api/items/<id>')
+def get(id):
+    return jsonify(store[id]) if id in store else (jsonify({'error':'not found'}), 404)
+
+@app.delete('/api/items/<id>')
+def delete(id):
+    if id not in store: return jsonify({'error':'not found'}), 404
+    del store[id]
+    return '', 204
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
+    print('http://localhost:5000')
+`;
+
+  return `#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""${plan.topic} — ${plan.features||'汎用スクリプト'}"""
+from typing import Optional
+import sys
+
+class App:
+    def __init__(self, name: str = '${plan.topic}'):
+        self.name = name
+        self.items: list[dict] = []
+
+    def add(self, name: str, value=None) -> dict:
+        item = {'id': len(self.items)+1, 'name': name, 'value': value}
+        self.items.append(item)
+        return item
+
+    def remove(self, id_: int) -> bool:
+        before = len(self.items)
+        self.items = [i for i in self.items if i['id'] != id_]
+        return len(self.items) < before
+
+    def search(self, q: str) -> list:
+        return [i for i in self.items if q.lower() in i['name'].lower()]
+
+    def stats(self) -> dict:
+        nums = [i['value'] for i in self.items if isinstance(i['value'], (int, float))]
+        return {'count':len(self.items),'sum':sum(nums),'avg':sum(nums)/len(nums) if nums else 0}
+
+    def show(self):
+        print(f'\\n=== {self.name} ({len(self.items)}件) ===')
+        for i in self.items:
+            print(f"  [{i['id']:>3}] {i['name']:<20} = {i['value']}")
+        print('─'*40)
+        print(self.stats())
+
+def main():
+    app = App()
+    print(f'{app.name} 起動 (help でコマンド)')
+    while True:
+        parts = input('> ').strip().split(None, 2)
+        if not parts: continue
+        match parts[0]:
+            case 'add'    if len(parts)>=2: item=app.add(parts[1], parts[2] if len(parts)>2 else None); print(f'追加: {item}')
+            case 'list'|'ls': app.show()
+            case 'remove'|'rm' if len(parts)>=2: print('削除' if app.remove(int(parts[1])) else '見つかりません')
+            case 'search' if len(parts)>=2: [print(i) for i in app.search(parts[1])]
+            case 'help': print('add <名前> [値] | list | remove <id> | search <q> | quit')
+            case 'quit'|'q': print('終了'); sys.exit(0)
+            case _: print('不明。help を参照')
+
+if __name__ == '__main__':
+    main()
+`;
+}
+
+function genTypeScript(plan) {
+  return `// ${plan.topic} - TypeScript
+// npx ts-node main.ts
+
+interface Item {
+  id: string;
+  name: string;
+  value: unknown;
+  createdAt: Date;
+}
+type Result<T> = { ok: true; data: T } | { ok: false; error: string };
+
+class ${plan.topic.replace(/\W/g,'')||'App'} {
+  private items = new Map<string, Item>();
+  private handlers = new Map<string, Function[]>();
+
+  on(ev: string, fn: Function) { (this.handlers.get(ev) ?? this.handlers.set(ev,[]).get(ev)!).push(fn); return this; }
+  private emit(ev: string, d: unknown) { (this.handlers.get(ev)??[]).forEach(f=>f(d)); }
+
+  add(name: string, value?: unknown): Result<Item> {
+    const item: Item = { id: crypto.randomUUID().slice(0,8), name, value, createdAt: new Date() };
+    this.items.set(item.id, item);
+    this.emit('add', item);
+    return { ok:true, data:item };
+  }
+  get(id: string)    { return this.items.get(id) ?? null; }
+  remove(id: string) { const ok = this.items.delete(id); if(ok) this.emit('remove',id); return ok; }
+  all()   { return [...this.items.values()]; }
+  size()  { return this.items.size; }
+  search(q: string) { return this.all().filter(i=>i.name.toLowerCase().includes(q.toLowerCase())); }
+  stats() {
+    const vals = this.all().map(i=>Number(i.value)).filter(Number.isFinite);
+    return { count:this.size(), sum:vals.reduce((a,b)=>a+b,0), avg: vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0 };
+  }
+}
+
+// demo
+const app = new ${plan.topic.replace(/\W/g,'')||'App'}();
+app.on('add', (i:Item) => console.log('追加:', i.name));
+app.add('サンプル A', 100);
+app.add('サンプル B', 200);
+console.log(app.stats());
+`;
+}
+
+function genRust(plan) {
+  return `// ${plan.topic} - Rust
+// cargo run
+use std::{collections::HashMap, io::{self,BufRead,Write}};
+
+#[derive(Debug, Clone)]
+struct Item { id: u64, name: String, value: f64 }
+
+#[derive(Default)]
+struct App { items: Vec<Item>, next: u64 }
+
+impl App {
+    fn add(&mut self, name: &str, value: f64) -> u64 {
+        self.next += 1;
+        self.items.push(Item{id:self.next,name:name.to_string(),value});
+        self.next
+    }
+    fn remove(&mut self, id: u64) -> bool {
+        let before = self.items.len();
+        self.items.retain(|i|i.id!=id);
+        self.items.len() < before
+    }
+    fn stats(&self) -> HashMap<&str,f64> {
+        let mut m = HashMap::new();
+        m.insert("count",self.items.len() as f64);
+        m.insert("sum",  self.items.iter().map(|i|i.value).sum());
+        m.insert("max",  self.items.iter().map(|i|i.value).fold(f64::NEG_INFINITY,f64::max));
+        m
+    }
+    fn show(&self) {
+        println!("\\n=== ${plan.topic} ({} 件) ===", self.items.len());
+        for i in &self.items { println!("  [{:>3}] {:<20} = {:.2}", i.id, i.name, i.value); }
+        println!("{:?}", self.stats());
+    }
+}
+
+fn main() {
+    let mut app = App::default();
+    let stdin = io::stdin();
+    let mut out = io::stdout();
+    println!("${plan.topic} 起動。help でコマンド一覧。");
+    for line in stdin.lock().lines() {
+        let line = line.unwrap();
+        let p: Vec<&str> = line.trim().splitn(3,' ').collect();
+        match p.as_slice() {
+            ["add",n,v] => if let Ok(v)=v.parse(){println!("追加 id:{}",app.add(n,v));}else{println!("数値エラー");}
+            ["list"|"ls"] => app.show(),
+            ["remove"|"rm",id] => if let Ok(id)=id.parse(){println!("{}",if app.remove(id){"削除"}else{"なし"});}
+            ["help"] => println!("add <名> <値> | list | remove <id> | quit"),
+            ["quit"|"q"] => {println!("終了");break;}
+            _ => println!("help を参照"),
+        }
+        print!("> "); out.flush().ok();
+    }
+}
+`;
+}
+
+function genC(plan) {
+  return `/* ${plan.topic} - C言語
+   gcc -Wall -O2 -o app main.c && ./app */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#define MAX 256
+#define NL 64
+
+typedef struct { int id; char name[NL]; double value; } Item;
+typedef struct { Item items[MAX]; int n; char title[NL]; } App;
+
+void init(App*a,const char*t){a->n=0;strncpy(a->title,t,NL-1);}
+
+int add(App*a,const char*name,double v){
+  if(a->n>=MAX){fprintf(stderr,"上限\\n");return-1;}
+  a->items[a->n]=(Item){a->n+1,"",v};
+  strncpy(a->items[a->n].name,name,NL-1);
+  return a->n++;
+}
+int rem(App*a,int id){
+  for(int i=0;i<a->n;i++)if(a->items[i].id==id){
+    for(int j=i;j<a->n-1;j++)a->items[j]=a->items[j+1];
+    a->n--;return 1;}return 0;
+}
+void show(App*a){
+  printf("\\n=== %s (%d件) ===\\n",a->title,a->n);
+  double s=0;for(int i=0;i<a->n;i++){printf("  [%3d] %-20s = %.2f\\n",a->items[i].id,a->items[i].name,a->items[i].value);s+=a->items[i].value;}
+  printf("合計: %.2f\\n",s);
+}
+
+int main(void){
+  App app;init(&app,"${plan.topic}");
+  char cmd[32],nm[NL];double v;
+  printf("${plan.topic} 起動。help でコマンド。\\n> ");
+  while(scanf("%31s",cmd)==1){
+    if(!strcmp(cmd,"add")){scanf("%63s%lf",nm,&v);add(&app,nm,v);}
+    else if(!strcmp(cmd,"list"))show(&app);
+    else if(!strcmp(cmd,"remove")){int id;scanf("%d",&id);printf(rem(&app,id)?"削除\\n":"なし\\n");}
+    else if(!strcmp(cmd,"help"))printf("add <名> <値> | list | remove <id> | quit\\n");
+    else if(!strcmp(cmd,"quit")||!strcmp(cmd,"q")){printf("終了\\n");break;}
+    else printf("help を参照\\n");
+    printf("> ");
+  }
+}
+`;
+}
+
+function genCPP(plan) {
+  return `// ${plan.topic} - C++17
+// g++ -std=c++17 -O2 -o app main.cpp && ./app
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <optional>
+#include <numeric>
+#include <format>
+
+struct Item { int id; std::string name; double value; };
+
+class ${plan.topic.replace(/\W/g,'')||'App'} {
+  std::vector<Item> items_;
+  int nid_ = 1;
+public:
+  int add(std::string name, double v) {
+    items_.push_back({nid_++, std::move(name), v}); return nid_-1;
+  }
+  bool remove(int id) {
+    auto it = std::find_if(items_.begin(),items_.end(),[id](auto&i){return i.id==id;});
+    if(it==items_.end()) return false; items_.erase(it); return true;
+  }
+  std::optional<Item> find(int id) const {
+    for(auto&i:items_) if(i.id==id) return i; return {};
+  }
+  double sum()  const { return std::accumulate(items_.begin(),items_.end(),0.,[](double s,auto&i){return s+i.value;}); }
+  void show() const {
+    std::cout << std::format("\\n=== ${plan.topic} ({}件) ===\\n", items_.size());
+    for(auto&i:items_) std::cout << std::format("  [{:>3}] {:<20} = {:.2f}\\n",i.id,i.name,i.value);
+    std::cout << std::format("合計: {:.2f}\\n", sum());
+  }
+};
+
+int main(){
+  ${plan.topic.replace(/\W/g,'')||'App'} app;
+  std::string cmd;
+  std::cout << "${plan.topic} 起動。help でコマンド。\\n> ";
+  while(std::cin >> cmd){
+    if(cmd=="add"){std::string n;double v;std::cin>>n>>v;std::cout<<"追加 id:"<<app.add(n,v)<<"\\n";}
+    else if(cmd=="list"||cmd=="ls")app.show();
+    else if(cmd=="remove"||cmd=="rm"){int id;std::cin>>id;std::cout<<(app.remove(id)?"削除\\n":"なし\\n");}
+    else if(cmd=="help")std::cout<<"add <名> <値> | list | remove <id> | quit\\n";
+    else if(cmd=="quit"||cmd=="q"){std::cout<<"終了\\n";break;}
+    else std::cout<<"help を参照\\n";
+    std::cout<<"> ";
+  }
+}
+`;
+}
+
+function genCSharp(plan) {
+  return `// ${plan.topic} - C# (.NET 8)
+// dotnet run
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+var app = new ${plan.topic.replace(/\W/g,'')||'App'}("${plan.topic}");
+app.Run();
+
+class ${plan.topic.replace(/\W/g,'')||'App'}(string title) {
+    record Item(int Id, string Name, double Value);
+    readonly List<Item> _items = [];
+    int _nid = 1;
+
+    Item Add(string name, double v) { var i=new Item(_nid++,name,v); _items.Add(i); return i; }
+    bool Remove(int id) { var i=_items.FirstOrDefault(x=>x.Id==id); return i!=null&&_items.Remove(i); }
+    IEnumerable<Item> Search(string q) => _items.Where(i=>i.Name.Contains(q,StringComparison.OrdinalIgnoreCase));
+    void Show() {
+        Console.WriteLine($"\\n=== {title} ({_items.Count}件) ===");
+        foreach(var i in _items) Console.WriteLine($"  [{i.Id:D3}] {i.Name,-20} = {i.Value:F2}");
+        if(_items.Count>0) Console.WriteLine($"  合計:{_items.Sum(i=>i.Value):F2} 平均:{_items.Average(i=>i.Value):F2}");
+    }
+
+    public void Run() {
+        Console.WriteLine($"=== {title} ===  help でコマンド");
+        while(true) {
+            Console.Write("\\n> ");
+            var p = (Console.ReadLine()??string.Empty).Split(' ',3);
+            switch(p[0].ToLower()) {
+                case "add" when p.Length>=3 && double.TryParse(p[2],out var v):
+                    Console.WriteLine($"追加: {Add(p[1],v)}"); break;
+                case "list" or "ls": Show(); break;
+                case "remove" or "rm" when int.TryParse(p.ElementAtOrDefault(1),out var id):
+                    Console.WriteLine(Remove(id)?"削除":"なし"); break;
+                case "search" when p.Length>=2:
+                    foreach(var i in Search(p[1])) Console.WriteLine(i); break;
+                case "help":
+                    Console.WriteLine("add <名> <値> | list | remove <id> | search <q> | quit"); break;
+                case "quit" or "q": Console.WriteLine("終了"); return;
+                default: Console.WriteLine("help を参照"); break;
+            }
+        }
+    }
+}
+`;
+}
+
+function genJava(plan) {
+  return `// ${plan.topic} - Java 17+
+// javac Main.java && java Main
+import java.util.*;
+import java.util.stream.*;
+
+public class Main {
+    record Item(int id, String name, double value){}
+
+    static class Repo {
+        final List<Item> items = new ArrayList<>();
+        int nid = 1;
+        Item add(String name, double v){var i=new Item(nid++,name,v);items.add(i);return i;}
+        boolean remove(int id){return items.removeIf(i->i.id()==id);}
+        List<Item> search(String q){return items.stream().filter(i->i.name().toLowerCase().contains(q.toLowerCase())).toList();}
+        void show(){
+            System.out.printf("\\n=== ${plan.topic} (%d件) ===%n",items.size());
+            items.forEach(i->System.out.printf("  [%3d] %-20s = %.2f%n",i.id(),i.name(),i.value()));
+            var s = items.stream().mapToDouble(Item::value).summaryStatistics();
+            if(s.getCount()>0) System.out.printf("  合計:%.2f 平均:%.2f%n",s.getSum(),s.getAverage());
+        }
+    }
+
+    public static void main(String[] args) {
+        var repo = new Repo();
+        var sc   = new Scanner(System.in);
+        System.out.println("=== ${plan.topic} === help でコマンド");
+        while(true){
+            System.out.print("\\n> ");
+            var p = sc.nextLine().trim().split("\\\\s+",3);
+            switch(p[0]){
+                case "add"->{ if(p.length<3)break;
+                    try{System.out.println("追加: "+repo.add(p[1],Double.parseDouble(p[2])));}
+                    catch(NumberFormatException e){System.out.println("数値エラー");}}
+                case "list","ls"->repo.show();
+                case "remove","rm"->{ if(p.length<2)break;
+                    try{System.out.println(repo.remove(Integer.parseInt(p[1]))?"削除":"なし");}
+                    catch(NumberFormatException e){System.out.println("IDエラー");}}
+                case "search"->{ if(p.length<2)break; repo.search(p[1]).forEach(System.out::println);}
+                case "help"->System.out.println("add <名> <値> | list | remove <id> | search <q> | quit");
+                case "quit","q"->{System.out.println("終了");return;}
+                default->System.out.println("help を参照");
+            }
+        }
+    }
+}
+`;
+}
+
+function genPyScript(plan) {
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>${plan.topic} - PyScript</title>
+<link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+<script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"><\/script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#07090f;color:#cbd5e1;min-height:100vh}
+header{padding:12px 18px;background:#0c0e18;border-bottom:1px solid #1d2438;display:flex;align-items:center;gap:8px}
+.logo{font-size:16px;font-weight:700;color:#4ade80}
+.badge{padding:2px 8px;border-radius:4px;background:#4ade8020;color:#4ade80;border:1px solid #4ade8040;font-size:10px;font-family:monospace}
+main{max-width:680px;margin:0 auto;padding:26px 18px}
+h2{font-size:19px;font-weight:700;margin-bottom:14px}
+.ctrl{display:flex;gap:7px;margin-bottom:13px;flex-wrap:wrap}
+input{flex:1;min-width:0;padding:8px 11px;background:#111520;border:1px solid #1d2438;border-radius:7px;color:#cbd5e1;font-size:14px;outline:none;transition:border .2s}
+input:focus{border-color:#4ade80}
+button{padding:8px 16px;background:#4ade80;border:none;border-radius:7px;color:#000;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap}
+button:hover{filter:brightness(1.1)}
+.btn-sec{background:#1d2438;color:#6b7a96}
+.btn-sec:hover{color:#cbd5e1}
+#out{background:#06080f;border:1px solid #1d2438;border-radius:9px;padding:12px;min-height:110px;font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.65;color:#6fa3d8;white-space:pre-wrap;overflow-y:auto;max-height:280px}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:9px;margin-top:14px}
+.stat{background:#111520;border:1px solid #1d2438;border-radius:9px;padding:12px;text-align:center}
+.sv{font-size:22px;font-weight:700;color:#4ade80;font-family:monospace}
+.sl{font-size:10px;color:#4b5a72;margin-top:3px;text-transform:uppercase;letter-spacing:.5px}
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">🐍 ${plan.topic}</span>
+  <span class="badge">PyScript</span>
+</header>
+<main>
+  <h2>${plan.topic}</h2>
+  <div class="ctrl">
+    <input type="text" id="inp" placeholder="テキストを入力...">
+    <button py-click="run_()">実行</button>
+    <button class="btn-sec" py-click="clear_()">クリア</button>
+  </div>
+  <div id="out">PyScript 読み込み中...</div>
+  <div class="stats">
+    <div class="stat"><div class="sv" id="s-count">0</div><div class="sl">実行回数</div></div>
+    <div class="stat"><div class="sv" id="s-chars">0</div><div class="sl">累計文字数</div></div>
+    <div class="stat"><div class="sv" id="s-avg">0</div><div class="sl">平均文字数</div></div>
+  </div>
+</main>
+<py-script>
+from pyscript import document
+from datetime import datetime
+
+COUNT = 0
+CHARS = 0
+
+def log(txt):
+    el = document.getElementById('out')
+    ts = datetime.now().strftime('%H:%M:%S')
+    el.textContent += f'[{ts}] {txt}\\n'
+    el.scrollTop = el.scrollHeight
+
+def update_stats():
+    avg = round(CHARS/COUNT,1) if COUNT else 0
+    document.getElementById('s-count').textContent = str(COUNT)
+    document.getElementById('s-chars').textContent = str(CHARS)
+    document.getElementById('s-avg').textContent   = str(avg)
+
+def process(text: str) -> str:
+    words  = text.split()
+    unique = len(set(text.replace(' ','')))
+    return (f'文字数:{len(text)} 単語数:{len(words)} '
+            f'ユニーク:{unique} 逆順:{text[::-1][:15]}')
+
+def run_(*_):
+    global COUNT, CHARS
+    text = document.getElementById('inp').value.strip()
+    if not text:
+        log('⚠ 入力が空です'); return
+    COUNT += 1; CHARS += len(text)
+    log(f'入力: {text}')
+    log(f'結果: {process(text)}')
+    log('─'*36)
+    update_stats()
+    document.getElementById('inp').value = ''
+
+def clear_(*_):
+    document.getElementById('out').textContent = ''
+    log('クリアしました')
+
+log('${plan.topic} 起動！')
+log(f'Python on PyScript — {datetime.now().strftime("%Y-%m-%d")}')
+log('─'*36)
+update_stats()
+</py-script>
+</body>
+</html>`;
+}
+
+function genJavaScript(plan) {
+  return `// ${plan.topic} - JavaScript
+'use strict';
+
+class ${plan.topic.replace(/\W/g,'')||'App'} {
+  #items = new Map();
+  #nid = 1;
+  #on = new Map();
+
+  on(ev,fn){(this.#on.get(ev)??this.#on.set(ev,[]).get(ev)).push(fn);return this;}
+  #emit(ev,d){(this.#on.get(ev)??[]).forEach(f=>f(d));}
+
+  add(name, value=null){
+    const item={id:this.#nid++,name,value,at:new Date()};
+    this.#items.set(item.id,item);this.#emit('add',item);return item;
+  }
+  get(id)    {return this.#items.get(id)??null;}
+  delete(id) {const ok=this.#items.delete(id);if(ok)this.#emit('delete',id);return ok;}
+  all()      {return[...this.#items.values()];}
+  search(q)  {return this.all().filter(i=>i.name.toLowerCase().includes(q.toLowerCase()));}
+  stats()    {
+    const vs=this.all().map(i=>Number(i.value)).filter(Number.isFinite);
+    return{count:this.#items.size,sum:vs.reduce((a,b)=>a+b,0),avg:vs.length?vs.reduce((a,b)=>a+b,0)/vs.length:0};
+  }
+  get size(){return this.#items.size;}
+}
+
+const app = new ${plan.topic.replace(/\W/g,'')||'App'}();
+app.on('add',i=>console.log('追加:',i.name));
+app.add('サンプル A', 100);
+app.add('サンプル B', 200);
+app.add('サンプル C', 150);
+console.log('stats:', app.stats());
+console.log('search B:', app.search('B'));
+`;
+}
+
+function generate(plan) {
+  const l = (plan.language||'html').toLowerCase().replace('c++','cpp').replace('c#','csharp');
+  const generators = {
+    html:genHTML, python:genPython, typescript:genTypeScript,
+    rust:genRust, c:genC, cpp:genCPP, csharp:genCSharp,
+    java:genJava, pyscript:genPyScript, javascript:genJavaScript
+  };
+  const code = (generators[l] || genHTML)(plan);
+  const lang = l in generators ? l : 'html';
+  return { lang, code };
+}
+
+// ══════════════════════════════════════════
+// GATHERING ENGINE
+// ══════════════════════════════════════════
+const S = {
+  busy: false,
+  mode: 'idle',   // idle | gathering | done
+  round: 0,
+  plan: {}
+};
+
+function setMode(m) {
+  S.mode = m;
+  const b = document.getElementById('mode-badge');
+  b.textContent = m.toUpperCase();
+  b.className = m === 'gathering' ? 'mode-badge gathering' : m === 'done' ? 'mode-badge ready' : 'mode-badge';
+}
+
+const GATHER_Q = [
+  p=>`[1/5] 🔤 **使用言語を選んでください**\n\n「${p.topic}」ですね！\n\n• HTML/CSS/JS — ブラウザUI\n• Python — スクリプト/AI/Web\n• TypeScript — 型付きJS\n• Rust — 高速CLI\n• C / C++ / C# — システム/Desktop\n• Java — サーバー/Android\n• PyScript — HTMLの中でPython\n\n（言語名を入力）`,
+  p=>`[2/5] ⚙️ **必要な機能を教えてください**\n\n**${LANG_LABEL[p.language]||p.language}** で **${p.topic}**\n\n例: ログイン・バリデーション、データ保存、グラフ表示、ファイル読み込み、検索機能、API連携...`,
+  p=>`[3/5] 📥 **入出力・データ形式は？**\n\n例:\n・ユーザーが入力 → 表示\n・ファイルを読む → 処理\n・APIを呼ぶ → 結果を表示\n\n（「標準」でもOK）`,
+  p=>`[4/5] 🎨 **スタイル・追加条件は？**\n\n例: ダークモード、レスポンシブ、アニメーション、シンプル、モバイルファースト\n\n（「なし」でもOK）`,
+  p=>`[5/5] ✅ **以下の内容で生成します**\n\n📌 **内容**: ${p.topic}\n🔤 **言語**: ${LANG_LABEL[p.language]||p.language}\n⚙️ **機能**: ${p.features||'基本機能'}\n📥 **入出力**: ${p.io||'標準'}\n🎨 **スタイル**: ${p.style||'シンプル'}\n\nGitHubから参考実装も検索します。\n\n**「OK」「はい」「生成して」で開始！**`
+];
+
+function parseLang(s) {
+  const i = s.toLowerCase();
+  if (/pyscript/.test(i)) return 'pyscript';
+  if (/python/.test(i)) return 'python';
+  if (/typescript/.test(i)) return 'typescript';
+  if (/rust/.test(i)) return 'rust';
+  if (/c#|csharp/.test(i)) return 'csharp';
+  if (/c\+\+|cpp/.test(i)) return 'cpp';
+  if (/\bc\b|c言語/.test(i)) return 'c';
+  if (/java(?!script)/.test(i)) return 'java';
+  if (/javascript|\bjs\b/.test(i)) return 'javascript';
+  if (/html|css|web|ウェブ/.test(i)) return 'html';
+  return null;
+}
+
+function isYes(s) {
+  return /^(ok|yes|は[いぃ]|生成|開始|よし|どうぞ|go|お願い)/i.test(s.trim());
+}
+
+function isCodeReq(s) {
+  return /作って|作りたい|作る|書いて|欲しい|生成|create|make|build|write|コード|アプリ|ツール|プログラム|スクリプト/.test(s);
+}
+
+async function stepGather(input) {
+  const p = S.plan;
+  if (S.round === 0) {
+    p.topic = input.trim();
+    const dl = detectLang(input);
+    if (dl) { p.language = dl; S.round = 2; setPG(2); return GATHER_Q[1](p); }
+    S.round = 1; setPG(1); return GATHER_Q[0](p);
+  }
+  if (S.round === 1) { p.language = parseLang(input)||'html'; S.round = 2; setPG(2); return GATHER_Q[1](p); }
+  if (S.round === 2) { p.features = input.trim(); S.round = 3; setPG(3); return GATHER_Q[2](p); }
+  if (S.round === 3) { p.io    = input.trim(); S.round = 4; setPG(4); return GATHER_Q[3](p); }
+  if (S.round === 4) { p.style = input.trim(); S.round = 5; setPG(5); return GATHER_Q[4](p); }
+  if (S.round === 5) {
+    if (!isYes(input) && input.trim().length > 5) p.features += ' ' + input.trim();
+    return null; // → generate
+  }
+  return null;
+}
+
+function setPG(n) {
+  document.getElementById('progress').classList.add('on');
+  document.getElementById('pg-lbl').textContent  = `STEP ${n}/5`;
+  document.getElementById('pg-fill').style.width = (n/5*100)+'%';
+  for (let i=0;i<5;i++) {
+    const el = document.getElementById('ps'+i);
+    el.className = 'pg-step' + (i<n-1?' done':i===n-1?' active':'');
+  }
+}
+
+// ══════════════════════════════════════════
+// MAIN HANDLER (called by send button onclick)
+// ══════════════════════════════════════════
+async function doSend() {
+  if (S.busy) return;
+  const inp = document.getElementById('user-input');
+  const text = inp.value.trim();
+  if (!text) return;
+  inp.value = '';
+  inp.style.height = 'auto';
+
+  // remove welcome
+  const w = document.getElementById('welcome');
+  if (w) w.remove();
+
+  addUser(text);
+  S.busy = true;
+  document.getElementById('send-btn').disabled = true;
+
+  const dot = addDots();
+  await sleep(300 + Math.random()*350);
+
+  try {
+    // greetings
+    if (/^(こんにちは|hello|hi|やあ|おはよう|どうも)/i.test(text.trim())) {
+      removeDots(dot); addAI('こんにちは！何を作りますか？\n\n「Pythonのスクレイパーを作って」「ダッシュボードが欲しい」など自由に話しかけてください。'); return;
+    }
+    // help
+    if (/使い方|help|ヘルプ|できること/.test(text)) {
+      removeDots(dot); addAI(`カイ AI v${VER} — 機能一覧\n\n📌 **9言語対応**: HTML/CSS/JS, Python, TypeScript, Rust, C, C++, C#, Java, PyScript\n🧠 **5ラウンド設計**: 要件を整理してから一気に生成\n⚡ **即時生成**: 「ボタン作って」など短い指示もOK\n🐙 **GitHub検索**: 関連実装を自動参照\n📚 **学習**: 「教える」で新パターン登録\n🔌 **外部API**: window.KaiAI で使用可能`); return;
+    }
+    // gathering mode
+    if (S.mode === 'gathering') {
+      const reply = await stepGather(text);
+      removeDots(dot);
+      if (reply !== null) { addAI(reply); return; }
+      await doGenerate(); return;
+    }
+    // memory quick match
+    const mm = memMatch(text);
+    if (mm) {
+      removeDots(dot);
+      addCodeMsg(mm.name, mm.language, mm.code, mm.id);
+      return;
+    }
+    // code request → start gathering
+    if (isCodeReq(text)) {
+      setMode('gathering');
+      S.round = 0; S.plan = {};
+      const reply = await stepGather(text);
+      removeDots(dot);
+      if (reply !== null) { addAI(reply); return; }
+      await doGenerate(); return;
+    }
+    // fallback
+    removeDots(dot);
+    addAI('うーん、よく分かりませんでした😅\n\n「ログインフォームを作って」「PythonでスクレイパーをHTML/CSS/JSで作りたい」など、具体的に話しかけてください！');
+
+  } catch(err) {
+    removeDots(dot);
+    addAI('⚠ エラー: ' + err.message);
+  } finally {
+    S.busy = false;
+    document.getElementById('send-btn').disabled = false;
+    document.getElementById('user-input').focus();
+  }
+}
+
+async function doGenerate() {
+  // search github
+  addAI(`⏳ **GitHub で参考実装を検索中...**\n言語: ${LANG_LABEL[S.plan.language]||S.plan.language}`);
+  const refs = await ghSearch(S.plan.topic, S.plan.language);
+  if (refs.length) {
+    addAI(`🐙 **${refs.length}件 の参考リポジトリ**を発見しました`);
+    addGH(refs);
+    await sleep(600);
+  }
+  const dot2 = addDots();
+  await sleep(500);
+  removeDots(dot2);
+
+  const r = generate(S.plan);
+  const id = 'g' + Date.now();
+  addCodeMsg(`${S.plan.topic} (${LANG_LABEL[r.lang]||r.lang})`, r.lang, r.code, id);
+
+  // auto-learn
+  const m = loadMem();
+  m.learned.unshift({ id, keywords:S.plan.topic.split(/\s+/).slice(0,5), name:S.plan.topic, language:r.lang, code:r.code, uses:1, added:new Date().toLocaleDateString('ja') });
+  saveMem(m); renderMem();
+
+  setMode('done');
+  document.getElementById('progress').classList.remove('on');
+}
+
+function memMatch(input) {
+  const low = input.toLowerCase();
+  const m = loadMem();
+  for (const p of m.learned) {
+    if (p.keywords.some(k => low.includes(k.toLowerCase()))) return p;
+  }
+  return null;
+}
+
+// ══════════════════════════════════════════
+// DOM HELPERS
+// ══════════════════════════════════════════
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function addUser(text) {
+  const chat = document.getElementById('chat');
+  const row = document.createElement('div');
+  row.className = 'msg user';
+  const ava = document.createElement('div'); ava.className='ava'; ava.textContent='YOU';
+  const bub = document.createElement('div'); bub.className='bub';
+  // textContent for user message (safe)
+  bub.textContent = text;
+  row.append(ava, bub);
+  chat.append(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function fmtText(s) {
+  // Only bold and newline — no raw HTML injection from user data
+  return s
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\n/g,'<br>');
+}
+
+function addAI(text) {
+  const chat = document.getElementById('chat');
+  const row = document.createElement('div');
+  row.className = 'msg ai';
+  const ava = document.createElement('div'); ava.className='ava'; ava.textContent='KAI';
+  const bub = document.createElement('div'); bub.className='bub';
+  bub.innerHTML = fmtText(text);   // fmtText escapes < > before bolding
+  row.append(ava, bub);
+  chat.append(row);
+  chat.scrollTop = chat.scrollHeight;
+  return row;
+}
+
+function addDots() {
+  const chat = document.getElementById('chat');
+  const row = document.createElement('div'); row.className='msg ai';
+  const ava = document.createElement('div'); ava.className='ava'; ava.textContent='KAI';
+  const d   = document.createElement('div'); d.className='dots';
+  d.innerHTML='<span></span><span></span><span></span>';
+  row.append(ava, d);
+  chat.append(row);
+  chat.scrollTop = chat.scrollHeight;
+  return row;
+}
+function removeDots(el) { if (el && el.parentNode) el.remove(); }
+
+function addGH(refs) {
+  const chat = document.getElementById('chat');
+  const row = document.createElement('div'); row.className='msg ai';
+  const ava = document.createElement('div'); ava.className='ava'; ava.textContent='KAI';
+  const bub = document.createElement('div'); bub.className='bub';
+  const wrap= document.createElement('div'); wrap.className='gh-refs';
+
+  refs.forEach(r => {
+    const a = document.createElement('a');
+    a.className='gh-ref'; a.href=r.url; a.target='_blank'; a.rel='noopener';
+    const info = document.createElement('div'); info.className='gh-info';
+    const nm   = document.createElement('div'); nm.className='gh-name';   nm.textContent = r.name;
+    const dc   = document.createElement('div'); dc.className='gh-desc';   dc.textContent = r.desc;
+    const st   = document.createElement('span'); st.className='gh-stars'; st.textContent = '★ ' + (r.stars >= 1000 ? (r.stars/1000).toFixed(1)+'k' : r.stars);
+    info.append(nm, dc);
+    a.innerHTML='<span style="font-size:15px">📦</span>';
+    a.append(info, st);
+    wrap.append(a);
+  });
+  bub.append(wrap);
+  row.append(ava, bub);
+  chat.append(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addCodeMsg(name, lang, code, id) {
+  // Store full code in JS Map — NOT in DOM attribute → no encoding issues
+  CODE_STORE.set(id, code);
+
+  const chat = document.getElementById('chat');
+  const row  = document.createElement('div'); row.className='msg ai';
+  const ava  = document.createElement('div'); ava.className='ava'; ava.textContent='KAI';
+  const bub  = document.createElement('div'); bub.className='bub';
+
+  // header text
+  const hdr = document.createElement('div');
+  hdr.innerHTML = '<span style="color:var(--green)">✅</span> <strong>' +
+    name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</strong> を生成しました';
+  hdr.style.marginBottom = '8px';
+
+  // code wrapper
+  const cw   = document.createElement('div'); cw.className='code-wrap';
+  const head = document.createElement('div'); head.className='code-head';
+  const lbl  = document.createElement('span'); lbl.className='code-lang '+lang; lbl.textContent=LANG_LABEL[lang]||lang;
+  const acts = document.createElement('div'); acts.className='code-btns';
+
+  const btnCopy = document.createElement('button'); btnCopy.className='cbtn'; btnCopy.textContent='コピー';
+  btnCopy.onclick = () => copyCode(id, btnCopy);
+
+  const canPreview = lang==='html'||lang==='pyscript';
+  if (canPreview) {
+    const btnPrev = document.createElement('button'); btnPrev.className='cbtn preview'; btnPrev.textContent='▶ プレビュー';
+    btnPrev.onclick = () => openPrev(id);
+    acts.append(btnPrev);
+  }
+  const btnDl = document.createElement('button'); btnDl.className='cbtn download'; btnDl.textContent='保存';
+  btnDl.onclick = () => dlCode(id, name, lang);
+
+  acts.append(btnCopy, btnDl);
+  head.append(lbl, acts);
+
+  // *** KEY FIX: use textarea with textContent — CSS cannot escape ***
+  const ta = document.createElement('textarea');
+  ta.className = 'code-area';
+  ta.readOnly   = true;
+  ta.rows       = Math.min(code.split('\n').length, 18);
+  ta.textContent = code.length > 900 ? code.slice(0, 900) + '\n…(省略)' : code;
+
+  cw.append(head, ta);
+
+  // feedback row
+  const fb = document.createElement('div'); fb.className='fb-row';
+  const fbl= document.createElement('span'); fbl.className='fb-lbl'; fbl.textContent='役に立ちましたか？';
+  const fg_btn = document.createElement('button'); fg_btn.className='fbbtn g'; fg_btn.textContent='👍';
+  fg_btn.onclick = () => doFeedback(fb, id, true);
+  const fb_btn = document.createElement('button'); fb_btn.className='fbbtn b'; fb_btn.textContent='👎';
+  fb_btn.onclick = () => doFeedback(fb, id, false);
+
+  fb.append(fbl, fg_btn, fb_btn);
+  bub.append(hdr, cw, fb);
+  row.append(ava, bub);
+  chat.append(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function copyCode(id, btn) {
+  const code = CODE_STORE.get(id);
+  if (!code) return;
+  navigator.clipboard.writeText(code).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = '✓ コピー済み'; btn.style.color='var(--green)';
+    setTimeout(() => { btn.textContent=orig; btn.style.color=''; }, 2000);
+  }).catch(() => alert('コピー失敗。手動で選択してください。'));
+}
+
+function dlCode(id, name, lang) {
+  const code = CODE_STORE.get(id);
+  if (!code) return;
+  const ext  = LANG_EXT[lang] || 'txt';
+  const safe = name.replace(/[^\w\-]/g,'_');
+  const blob = new Blob([code], {type:'text/plain'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href=url; a.download=safe+'.'+ext; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function openPrev(id) {
+  const code = CODE_STORE.get(id);
+  if (!code) return;
+  document.getElementById('prev-frame').srcdoc = code;
+  document.getElementById('prev-modal').classList.add('on');
+}
+function closePrev() {
+  document.getElementById('prev-modal').classList.remove('on');
+  document.getElementById('prev-frame').srcdoc = '';
+}
+
+function doFeedback(row, id, good) {
+  rateItem(id, good);
+  row.innerHTML = good
+    ? '<span style="color:var(--green);font-size:13px">👍 ありがとう！このパターンを優先します。</span>'
+    : '<span style="color:var(--pink);font-size:13px">👎 了解！「教える」で改善版を登録できます。</span>';
+}
+
+// ══════════════════════════════════════════
+// SESSION
+// ══════════════════════════════════════════
+function resetSession() {
+  S.mode='idle'; S.round=0; S.plan={};
+  setMode('idle');
+  document.getElementById('progress').classList.remove('on');
+  addAI('🔄 リセットしました。新しい作業を始めてください！');
+}
+
+// ══════════════════════════════════════════
+// MODALS
+// ══════════════════════════════════════════
+function openTeach()  { document.getElementById('teach-modal').classList.add('on'); }
+function closeTeach() { document.getElementById('teach-modal').classList.remove('on'); }
+function saveTeach() {
+  const kw   = document.getElementById('tk').value.trim();
+  const name = document.getElementById('tn').value.trim();
+  const lang = document.getElementById('tl').value;
+  const code = document.getElementById('tc').value.trim();
+  if (!kw||!name||!code) { alert('キーワード・名前・コードは必須です'); return; }
+  const keywords = kw.split(',').map(s=>s.trim()).filter(Boolean);
+  addLearned(keywords, name, lang, code);
+  closeTeach();
+  const w = document.getElementById('welcome');
+  if (w) w.remove();
+  addAI(`📚 「${name}」を学習しました！\nキーワード: ${keywords.slice(0,4).join(', ')}\n言語: ${LANG_LABEL[lang]||lang}\n\n次回「${keywords[0]}」と言えばこのコードを生成します。`);
+  ['tk','tn','tc'].forEach(i=>{ document.getElementById(i).value=''; });
+}
+
+// ══════════════════════════════════════════
+// SIDEBAR
+// ══════════════════════════════════════════
+let sidebarOpen = true;
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen;
+  document.getElementById('sidebar').classList.toggle('closed', !sidebarOpen);
+}
+
+function showTab(name, btn) {
+  document.querySelectorAll('.stab').forEach(b=>b.classList.remove('on'));
+  document.querySelectorAll('.spanel').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('sp-'+name).classList.add('on');
+}
+
+const QUICK = [
+  {kw:['ボタン','button'],     lang:'html',    label:'ボタン集'},
+  {kw:['ログイン','login'],    lang:'html',    label:'ログインフォーム'},
+  {kw:['タイマー','timer'],    lang:'html',    label:'ストップウォッチ'},
+  {kw:['電卓','calculator'],   lang:'html',    label:'電卓'},
+  {kw:['todo','タスク'],       lang:'html',    label:'Todoアプリ'},
+  {kw:['dashboard','管理'],    lang:'html',    label:'ダッシュボード'},
+  {kw:['flask','api'],         lang:'python',  label:'Flask API'},
+  {kw:['react','component'],   lang:'typescript', label:'Reactコンポーネント'},
+];
+
+function renderTmpl() {
+  const el = document.getElementById('sp-tmpl');
+  el.innerHTML = '';
+  QUICK.forEach(t => {
+    const div = document.createElement('div'); div.className='scard';
+    const sc = getScore(t.kw[0]);
+    div.innerHTML = `<div class="sc-name">${t.label}${sc!==null?` <span class="sc-score">★${sc}%</span>`:''}</div>
+      <div class="sc-lang">${LANG_LABEL[t.lang]||t.lang}</div>
+      <div class="sc-kw">${t.kw.join(' / ')}</div>`;
+    div.onclick = () => { document.getElementById('user-input').value=t.kw[0]+'を作って'; doSend(); };
+    el.append(div);
+  });
+}
+
+function renderMem() {
+  const el = document.getElementById('sp-mem');
+  el.innerHTML = '';
+  const m = loadMem();
+  if (!m.learned.length) {
+    const d = document.createElement('div'); d.className='s-empty';
+    d.textContent = 'まだ何も学習していません。\n「教える」か生成後に自動追加されます。';
+    el.append(d); return;
+  }
+  m.learned.forEach(p => {
+    const div = document.createElement('div'); div.className='scard';
+    const sc  = getScore(p.id);
+    div.innerHTML = `<button class="sc-del" onclick="delLearned('${p.id}');event.stopPropagation()">×</button>
+      <div class="sc-name">${p.name}</div>
+      <div class="sc-lang">${LANG_LABEL[p.language]||p.language}</div>
+      <div class="sc-kw">${(p.keywords||[]).slice(0,4).join(' / ')}</div>
+      <div class="sc-score">${p.uses}回${sc!==null?` · ★${sc}%`:''} · ${p.added}</div>`;
+    div.onclick = () => { document.getElementById('user-input').value=(p.keywords[0]||p.name)+'を作って'; document.getElementById('user-input').focus(); };
+    el.append(div);
+  });
+}
+
+function renderAPI() {
+  const el = document.getElementById('sp-api');
+  el.innerHTML = '';
+  const sections = [
+    {
+      title: 'window.KaiAI — 同一ページから',
+      code: `const r = await window.KaiAI.generate({
+  topic: 'ログインフォーム',
+  language: 'html'
+});
+console.log(r.code);`,
+      note: 'HTMLファイルを直接開いて使用する場合、このAPIが利用できます。'
+    },
+    {
+      title: 'PostMessage — iframe / 外部ページから',
+      code: `const frame = document.querySelector('iframe');
+frame.contentWindow.postMessage({
+  type: 'KAI_REQUEST',
+  action: 'generate',
+  payload: { topic: 'タイマー', language: 'html' },
+  id: '001'
+}, '*');
+
+window.addEventListener('message', e => {
+  if (e.data.type === 'KAI_RESPONSE')
+    console.log(e.data.result);
+});`,
+      note: 'kai_ai_v4.html を iframe に埋め込んで外部から呼び出せます。'
+    },
+    {
+      title: '利用可能なメソッド',
+      code: `KaiAI.generate(options)   // コード生成
+KaiAI.learn(pattern)      // 新パターン追加
+KaiAI.getTemplates()      // テンプレート一覧
+KaiAI.stats()             // 記憶・統計`,
+      note: null
+    }
+  ];
+  sections.forEach((s, i) => {
+    const t = document.createElement('div'); t.className='api-ttl'; t.textContent=s.title;
+    const c = document.createElement('pre'); c.className='api-block'; c.textContent=s.code;
+    const b = document.createElement('button'); b.className='copy-api'; b.textContent='コピー';
+    b.onclick = () => { navigator.clipboard.writeText(s.code).then(()=>{b.textContent='✓';setTimeout(()=>b.textContent='コピー',2000);}); };
+    el.append(t,c,b);
+    if (s.note) { const n=document.createElement('div'); n.className='api-note'; n.textContent=s.note; el.append(n); }
+  });
+}
+
+// ══════════════════════════════════════════
+// EXTERNAL API
+// ══════════════════════════════════════════
+window.KaiAI = {
+  version: VER,
+  generate: (opt={}) => Promise.resolve(generate({ topic:opt.topic||'App', language:opt.language||'html', features:opt.features||'', io:opt.io||'', style:opt.style||'' })),
+  learn:   (p={}) => { if(!p.keywords||!p.name||!p.code) return {ok:false,error:'keywords,name,code required'}; addLearned(p.keywords,p.name,p.language||'html',p.code); return {ok:true}; },
+  getTemplates: () => QUICK.map(t=>({id:t.kw[0],name:t.label,keywords:t.kw,language:t.lang})),
+  stats:   () => { const m=loadMem(); return {learned:m.learned.length,scores:m.scores}; }
+};
+
+window.addEventListener('message', async e => {
+  if (!e.data || e.data.type !== 'KAI_REQUEST') return;
+  const { action, payload, id } = e.data;
+  try {
+    const fn = window.KaiAI[action];
+    if (typeof fn !== 'function') throw new Error('Unknown action: '+action);
+    const result = await fn(payload||{});
+    e.source?.postMessage({ type:'KAI_RESPONSE', id, result, ok:true }, e.origin||'*');
+  } catch(err) {
+    e.source?.postMessage({ type:'KAI_RESPONSE', id, error:err.message, ok:false }, e.origin||'*');
+  }
+});
+
+// ══════════════════════════════════════════
+// INPUT EVENTS
+// ══════════════════════════════════════════
+document.getElementById('user-input').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
+});
+document.getElementById('user-input').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+});
+
+// close modals on overlay click
+['prev-modal','teach-modal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', function(e) {
+    if (e.target === this) { this.classList.remove('on'); if(id==='prev-modal') document.getElementById('prev-frame').srcdoc=''; }
+  });
+});
+
+// ══════════════════════════════════════════
+// WELCOME SCREEN
+// ══════════════════════════════════════════
+(function initWelcome() {
+  const langs = ['HTML/CSS/JS','JavaScript','TypeScript','Python','Rust','C','C++','C#','Java','PyScript'];
+  const sugs  = ['ログインフォームを作って','Pythonでスクレイパー','ダッシュボードが欲しい','TypeScriptでReact','Rustで CLIツール','Javaで REST API','C#でデスクトップアプリ','PyScriptで電卓'];
+
+  const wl = document.getElementById('w-langs');
+  langs.forEach(l => { const s=document.createElement('span'); s.className='w-lang'; s.textContent=l; wl.append(s); });
+
+  const ws = document.getElementById('w-sugs');
+  sugs.forEach(s => {
+    const btn = document.createElement('button'); btn.className='w-sug'; btn.textContent=s;
+    btn.onclick = () => { document.getElementById('user-input').value=s; doSend(); };
+    ws.append(btn);
+  });
+
+  renderTmpl();
+  renderMem();
+  renderAPI();
+  console.log('%cカイ AI v'+VER+' 起動', 'color:#3b82f6;font-size:14px;font-weight:700');
+  console.log('%cwindow.KaiAI で外部APIとして利用可能', 'color:#10b981');
+})();
+</script>
+</body>
+</html>
