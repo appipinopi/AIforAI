@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODE CORE V8.1 - 学習型AIコード生成</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'Noto Sans JP', 'JetBrains Mono', monospace;
+            background: #070910;
+            color: #bfcfe8;
+            overflow: hidden;
+        }
+        .app {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+        .session-panel {
+            width: 280px;
+            background: #0b0d18;
+            border-right: 1px solid #1b2236;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .new-session-btn {
+            background: #1ed98a;
+            color: #000;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .session-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .session-item {
+            background: #10131e;
+            border: 1px solid #1b2236;
+            border-radius: 12px;
+            padding: 0.6rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .session-item.active {
+            border-color: #4f8ef7;
+            background: rgba(79, 142, 247, 0.1);
+        }
+        .session-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+        }
+        .session-date {
+            font-size: 0.65rem;
+            color: #3a506a;
+        }
+        .config-steps {
+            margin-top: 1rem;
+            border-top: 1px solid #1b2236;
+            padding-top: 1rem;
+        }
+        .step-item {
+            padding: 0.5rem;
+            border-left: 2px solid #3a506a;
+            margin-bottom: 0.5rem;
+            font-size: 0.7rem;
+        }
+        .step-item.completed { border-left-color: #1ed98a; }
+        .step-item.current { border-left-color: #f5c031; background: rgba(245, 192, 49, 0.05); }
+        .generate-btn {
+            background: #1ed98a;
+            color: #000;
+            width: 100%;
+            padding: 0.6rem;
+            border: none;
+            border-radius: 40px;
+            margin-top: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .generate-btn:disabled {
+            background: #3a506a;
+            cursor: not-allowed;
+        }
+        .download-btns {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .download-btns button {
+            flex: 1;
+            background: #1b2236;
+            border: 1px solid #2d3748;
+            padding: 0.4rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0c0f1a;
+        }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        .message {
+            max-width: 85%;
+            animation: fadeIn 0.2s;
+        }
+        .user-message { align-self: flex-end; }
+        .ai-message { align-self: flex-start; }
+        .msg-bubble {
+            padding: 0.6rem 1rem;
+            border-radius: 18px;
+            line-height: 1.5;
+            font-size: 0.85rem;
+        }
+        .user-message .msg-bubble {
+            background: #4f8ef7;
+            border-bottom-right-radius: 4px;
+        }
+        .ai-message .msg-bubble {
+            background: #10131e;
+            border: 1px solid #1b2236;
+            border-bottom-left-radius: 4px;
+        }
+        .math-block {
+            background: #070910;
+            border-radius: 8px;
+            padding: 0.6rem;
+            margin-top: 0.4rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            border-left: 3px solid #1ed98a;
+        }
+        .math-step {
+            color: #8b9dc3;
+            font-size: 0.7rem;
+            margin-top: 0.2rem;
+        }
+        .math-result {
+            color: #1ed98a;
+            font-weight: bold;
+            margin-top: 0.3rem;
+        }
+        .input-area {
+            padding: 1rem;
+            background: #0b0d18;
+            border-top: 1px solid #1b2236;
+        }
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+        textarea {
+            flex: 1;
+            background: #10131e;
+            border: 1px solid #1b2236;
+            border-radius: 24px;
+            padding: 0.6rem 1rem;
+            color: #bfcfe8;
+            font-family: inherit;
+            font-size: 0.85rem;
+            resize: none;
+            outline: none;
+        }
+        button {
+            background: #4f8ef7;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 40px;
+            color: white;
+            cursor: pointer;
+        }
+        .right-panel {
+            width: 400px;
+            background: #0b0d18;
+            border-left: 1px solid #1b2236;
+            display: flex;
+            flex-direction: column;
+        }
+        .skill-section, .code-section {
+            border-bottom: 1px solid #1b2236;
+            padding: 0.8rem;
+        }
+        .skill-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .skill-list {
+            max-height: 180px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+        .skill-card {
+            background: #10131e;
+            border: 1px solid #1b2236;
+            border-radius: 8px;
+            padding: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .skill-card.enabled { border-color: #4f8ef7; }
+        .skill-name { font-size: 0.75rem; font-weight: 500; }
+        .skill-toggle {
+            width: 32px;
+            height: 18px;
+            border-radius: 20px;
+            background: #3a506a;
+            cursor: pointer;
+            position: relative;
+            transition: 0.2s;
+        }
+        .skill-toggle.on { background: #4f8ef7; }
+        .skill-toggle::after {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: white;
+            top: 2px;
+            left: 2px;
+            transition: 0.2s;
+        }
+        .skill-toggle.on::after { left: 16px; }
+        .github-input {
+            display: flex;
+            gap: 0.3rem;
+            margin-top: 0.5rem;
+        }
+        .github-input input {
+            flex: 1;
+            background: #10131e;
+            border: 1px solid #1b2236;
+            border-radius: 20px;
+            padding: 0.4rem 0.6rem;
+            font-size: 0.7rem;
+            color: white;
+        }
+        .code-preview {
+            flex: 1;
+            overflow: auto;
+            padding: 0.5rem;
+        }
+        .code-preview pre {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            white-space: pre-wrap;
+        }
+        .preview-frame {
+            height: 150px;
+            border: 1px solid #1b2236;
+            border-radius: 8px;
+            background: white;
+            margin-top: 0.5rem;
+        }
+        .preview-frame iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .quick-replies {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-top: 0.5rem;
+        }
+        .qr-btn {
+            background: #10131e;
+            border: 1px solid #1b2236;
+            padding: 0.2rem 0.6rem;
+            border-radius: 16px;
+            font-size: 0.65rem;
+            cursor: pointer;
+        }
+        .math-special {
+            background: linear-gradient(135deg, #1a2a3a, #0f1722);
+            border-radius: 12px;
+            padding: 0.8rem;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="session-panel">
+        <div class="session-header">
+            <span style="font-weight: bold;">📋 会話セッション</span>
+            <button class="new-session-btn" id="newSessionBtn">+ 新規会話</button>
+        </div>
+        <div class="session-list" id="sessionList"></div>
+        <div class="config-steps" id="configSteps"></div>
+        <button class="generate-btn" id="generateBtn" disabled>🚀 第6回: 一括コード生成</button>
+        <div class="download-btns">
+            <button id="downloadDataBtn">🔒 データ保護出力</button>
+            <button id="exportSkillsBtn">📤 スキル出力</button>
+        </div>
+        <div style="font-size:0.6rem; text-align:center; margin-top:0.5rem; color:#3a506a;">🔐 パスワード保護有効</div>
+    </div>
+
+    <div class="chat-area">
+        <div class="messages" id="messagesContainer">
+            <div class="message ai-message">
+                <div class="msg-bubble">
+                    🤖 <strong>CODE CORE V8.1</strong><br>
+                    5回対話 → コード生成。高校数学全範囲対応！<br>
+                    <strong>【ターン1】</strong> 言語: HTML/CSS/JS, Python, Rust, C/C++, Java, TypeScript<br><br>
+                    📐 <strong>数学対応範囲:</strong> 方程式・連立方程式・二次関数・三角関数・指数対数・微分積分・ベクトル・数列・確率・複素数・行列
+                </div>
+            </div>
+        </div>
+        <div class="input-area">
+            <div class="input-group">
+                <textarea id="userInput" rows="2" placeholder="メッセージを入力... (Enter送信)"></textarea>
+                <button id="sendBtn">📤 送信</button>
+            </div>
+            <div class="quick-replies" id="quickReplies"></div>
+        </div>
+    </div>
+
+    <div class="right-panel">
+        <div class="skill-section">
+            <div class="skill-header">
+                <span>⚡ スキル管理</span>
+                <button id="openSkillModal" style="background:#1b2236; padding:0.2rem 0.6rem; font-size:0.7rem;">管理</button>
+            </div>
+            <div class="skill-list" id="skillList"></div>
+            <div class="github-input">
+                <input type="text" id="githubUrl" placeholder="GitHub raw URL (スキル定義JSON)">
+                <button id="learnFromGitHub">学習</button>
+            </div>
+            <div id="githubStatus" style="font-size:0.6rem; margin-top:0.3rem; color:#f5c031;"></div>
+        </div>
+        <div class="code-section">
+            <div style="display:flex; gap:0.3rem; margin-bottom:0.5rem;">
+                <span>📄 生成コード</span>
+                <button id="copyCodeBtn" style="background:#1b2236; padding:0.2rem 0.5rem; font-size:0.6rem;">コピー</button>
+                <button id="downloadCodeBtn" style="background:#1b2236; padding:0.2rem 0.5rem; font-size:0.6rem;">DL</button>
+            </div>
+            <div class="code-preview" id="codePreview">
+                <pre>まだコードがありません</pre>
+            </div>
+            <div class="preview-frame" id="previewFrame">
+                <iframe id="livePreview" srcdoc="<html><body style='background:#1e1e2e;color:#fff;display:flex;align-items:center;justify-content:center;height:100%'>プレビュー</body></html>"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="skillModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#0b0d18; border:1px solid #1b2236; border-radius:16px; width:500px; max-width:90%; max-height:80vh; overflow:auto; padding:1rem;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:1rem;">
+            <h3>⚡ スキル管理</h3>
+            <button id="closeSkillModal" style="background:none; font-size:1.2rem;">✕</button>
+        </div>
+        <div id="skillModalList" style="display:flex; flex-direction:column; gap:0.5rem;"></div>
+        <div style="margin-top:1rem; padding-top:0.5rem; border-top:1px solid #1b2236;">
+            <h4 style="font-size:0.8rem;">📥 GitHubからスキル追加</h4>
+            <div style="display:flex; gap:0.3rem; margin-top:0.3rem;">
+                <input type="text" id="modalGithubUrl" placeholder="https://raw.githubusercontent.com/.../skill.json" style="flex:1; background:#10131e; border:1px solid #1b2236; border-radius:20px; padding:0.4rem; font-size:0.7rem; color:white;">
+                <button id="modalLearnBtn" style="background:#1ed98a; color:#000;">追加</button>
+            </div>
+            <div id="modalGithubStatus" style="font-size:0.6rem; margin-top:0.3rem;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ==================== 定数・設定 ====================
+        const REQUIRED_PASSWORD = "@ppipinopi_0123";
+        const STORAGE_SESSIONS = 'core_sessions_v81';
+        const STORAGE_ACTIVE = 'core_active_v81';
+        const STORAGE_SKILLS = 'core_skills_v81';
+        
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        // ==================== 高校数学エンジン (全範囲対応) ====================
+        const MathEngine = {
+            // 安全な数式評価
+            evaluate(expr) {
+                try {
+                    let clean = expr.replace(/×/g, '*').replace(/÷/g, '/').replace(/\^/g, '**');
+                    clean = clean.replace(/√\(?([^)]+)\)?/g, 'Math.sqrt($1)');
+                    clean = clean.replace(/sin\(/g, 'Math.sin(');
+                    clean = clean.replace(/cos\(/g, 'Math.cos(');
+                    clean = clean.replace(/tan\(/g, 'Math.tan(');
+                    clean = clean.replace(/log\(/g, 'Math.log10(');
+                    clean = clean.replace(/ln\(/g, 'Math.log(');
+                    clean = clean.replace(/π/g, 'Math.PI');
+                    clean = clean.replace(/e(?![a-z])/g, 'Math.E');
+                    const fn = new Function('Math', `return (${clean})`);
+                    const result = fn(Math);
+                    return typeof result === 'number' && !isNaN(result) ? result : null;
+                } catch { return null; }
+            },
+            
+            // 方程式ソルバー (ax + b = c)
+            solveLinear(expr) {
+                const match = expr.match(/(-?\d*\.?\d*)\s*([a-z])\s*([+\-])\s*(\d+\.?\d*)\s*=\s*(-?\d+\.?\d*)/i);
+                if (match) {
+                    let a = parseFloat(match[1]) || 1;
+                    const op = match[3];
+                    let b = parseFloat(match[4]);
+                    const c = parseFloat(match[5]);
+                    if (op === '-') b = -b;
+                    const x = (c - b) / a;
+                    return { steps: [`${a}x + ${b} = ${c}`, `${a}x = ${c - b}`, `x = ${(c - b)} / ${a}`], result: `x = ${x}` };
+                }
+                return null;
+            },
+            
+            // 連立方程式 (2元1次)
+            solveSystem(expr) {
+                const lines = expr.split(/[\n,;]/);
+                const eqs = [];
+                for (let line of lines) {
+                    const match = line.match(/(\d*\.?\d*)\s*([a-z])\s*([+\-])\s*(\d*\.?\d*)\s*([a-z])\s*=\s*(-?\d+\.?\d*)/i);
+                    if (match) {
+                        let a = parseFloat(match[1]) || (match[2] === match[4] ? 1 : 0);
+                        let b = parseFloat(match[4]) || (match[5] ? 1 : 0);
+                        if (match[3] === '-') b = -b;
+                        const c = parseFloat(match[6]);
+                        eqs.push({ a, b, c });
+                    }
+                }
+                if (eqs.length >= 2) {
+                    const { a1, b1, c1 } = eqs[0];
+                    const { a2, b2, c2 } = eqs[1];
+                    const det = a1 * b2 - a2 * b1;
+                    if (det !== 0) {
+                        const x = (c1 * b2 - c2 * b1) / det;
+                        const y = (a1 * c2 - a2 * c1) / det;
+                        return { steps: [`行列式 = ${det}`, `x = (${c1}×${b2} - ${c2}×${b1}) / ${det}`, `y = (${a1}×${c2} - ${a2}×${c1}) / ${det}`], result: `x = ${x}, y = ${y}` };
+                    }
+                }
+                return null;
+            },
+            
+            // 二次方程式
+            solveQuadratic(expr) {
+                const match = expr.match(/(\d*\.?\d*)x\^?2\s*([+\-])\s*(\d*\.?\d*)x\s*([+\-])\s*(\d+\.?\d*)\s*=\s*0/);
+                if (match) {
+                    let a = parseFloat(match[1]) || 1;
+                    let b = parseFloat(match[3]) || 0;
+                    let c = parseFloat(match[5]) || 0;
+                    if (match[2] === '-') b = -b;
+                    if (match[4] === '-') c = -c;
+                    const D = b * b - 4 * a * c;
+                    const steps = [`判別式 D = ${b}² - 4×${a}×${c} = ${D}`];
+                    if (D > 0) {
+                        const x1 = (-b + Math.sqrt(D)) / (2 * a);
+                        const x2 = (-b - Math.sqrt(D)) / (2 * a);
+                        return { steps, result: `x = ${x1.toFixed(4)}, ${x2.toFixed(4)}` };
+                    } else if (D === 0) {
+                        const x = -b / (2 * a);
+                        return { steps, result: `x = ${x} (重解)` };
+                    } else {
+                        const re = -b / (2 * a);
+                        const im = Math.sqrt(-D) / (2 * a);
+                        return { steps, result: `x = ${re.toFixed(4)} ± ${im.toFixed(4)}i` };
+                    }
+                }
+                return null;
+            },
+            
+            // 三角関数の値
+            solveTrig(value) {
+                const match = value.match(/(sin|cos|tan)\((\d+\.?\d*)(°|deg|rad)?\)/i);
+                if (match) {
+                    let angle = parseFloat(match[2]);
+                    const unit = match[3];
+                    if (unit === '°' || unit === 'deg') angle = angle * Math.PI / 180;
+                    let result;
+                    switch (match[1].toLowerCase()) {
+                        case 'sin': result = Math.sin(angle); break;
+                        case 'cos': result = Math.cos(angle); break;
+                        case 'tan': result = Math.tan(angle); break;
+                        default: return null;
+                    }
+                    return { steps: [`${match[1]}(${match[2]}${unit || '°'}) を計算`], result: `= ${result.toFixed(6)}` };
+                }
+                return null;
+            },
+            
+            // 微分 (多項式)
+            differentiate(expr) {
+                const match = expr.match(/(\d*\.?\d*)x\^?(\d*)/);
+                if (match) {
+                    let coeff = parseFloat(match[1]) || 1;
+                    let exp = parseInt(match[2]) || 1;
+                    const newCoeff = coeff * exp;
+                    const newExp = exp - 1;
+                    if (newExp === 0) return { steps: [`d/dx [${coeff}x^${exp}]`], result: `${newCoeff}` };
+                    if (newExp === 1) return { steps: [`d/dx [${coeff}x^${exp}]`], result: `${newCoeff}x` };
+                    return { steps: [`d/dx [${coeff}x^${exp}]`], result: `${newCoeff}x^${newExp}` };
+                }
+                return null;
+            },
+            
+            // 積分 (多項式)
+            integrate(expr) {
+                const match = expr.match(/(\d*\.?\d*)x\^?(\d*)/);
+                if (match) {
+                    let coeff = parseFloat(match[1]) || 1;
+                    let exp = parseInt(match[2]) || 1;
+                    const newExp = exp + 1;
+                    const newCoeff = coeff / newExp;
+                    return { steps: [`∫${coeff}x^${exp} dx`], result: `${newCoeff}x^${newExp} + C` };
+                }
+                return null;
+            },
+            
+            // 数列 (等差数列・等比数列)
+            sequence(expr) {
+                const arith = expr.match(/初項(\d+).*公差(\d+)/);
+                if (arith) {
+                    const a = parseFloat(arith[1]), d = parseFloat(arith[2]);
+                    return { steps: [`等差数列: a₁ = ${a}, d = ${d}`, `一般項: aₙ = ${a} + (n-1)×${d}`], result: `aₙ = ${a} + ${d}(n-1)` };
+                }
+                const geo = expr.match(/初項(\d+).*公比(\d+)/);
+                if (geo) {
+                    const a = parseFloat(geo[1]), r = parseFloat(geo[2]);
+                    return { steps: [`等比数列: a₁ = ${a}, r = ${r}`, `一般項: aₙ = ${a} × ${r}ⁿ⁻¹`], result: `aₙ = ${a}·${r}^(n-1)` };
+                }
+                return null;
+            },
+            
+            // ベクトル (内積)
+            vector(expr) {
+                const match = expr.match(/\((\d+),(\d+)\)\s*[・.]\s*\((\d+),(\d+)\)/);
+                if (match) {
+                    const a1 = parseFloat(match[1]), a2 = parseFloat(match[2]);
+                    const b1 = parseFloat(match[3]), b2 = parseFloat(match[4]);
+                    const dot = a1 * b1 + a2 * b2;
+                    return { steps: [`a·b = ${a1}×${b1} + ${a2}×${b2}`], result: `内積 = ${dot}` };
+                }
+                return null;
+            },
+            
+            // 確率 (組み合わせ)
+            probability(expr) {
+                const match = expr.match(/(\d+)C(\d+)/);
+                if (match) {
+                    const n = parseInt(match[1]), r = parseInt(match[2]);
+                    const fact = (x) => x <= 1 ? 1 : x * fact(x - 1);
+                    const comb = fact(n) / (fact(r) * fact(n - r));
+                    return { steps: [`${n}C${r} = ${n}! / (${r}! × ${n - r}!)`], result: `= ${comb}` };
+                }
+                return null;
+            },
+            
+            // 複素数
+            complex(expr) {
+                const match = expr.match(/(\d+)\s*([+\-])\s*(\d+)i/);
+                if (match) {
+                    const real = parseFloat(match[1]);
+                    const imag = parseFloat(match[3]) * (match[2] === '+' ? 1 : -1);
+                    const abs = Math.sqrt(real * real + imag * imag);
+                    return { steps: [`|${real} + ${imag}i| = √(${real}² + ${imag}²)`], result: `絶対値 = ${abs.toFixed(4)}` };
+                }
+                return null;
+            },
+            
+            // メイン処理
+            solve(input) {
+                const lower = input.toLowerCase();
+                
+                // 単純計算
+                if (/^[\d\s\+\-\*\/\(\)\.πe√sin cos tan log]+$/.test(lower) || /[+\-*/]/.test(lower)) {
+                    const val = this.evaluate(input);
+                    if (val !== null) return { steps: [`式: ${input}`], result: `= ${val}` };
+                }
+                // 一次方程式
+                if (/=.*[a-z]/i.test(input)) {
+                    const linear = this.solveLinear(input);
+                    if (linear) return linear;
+                }
+                // 連立方程式
+                if (/[,;].*[a-z]/i.test(input) && input.includes('=')) {
+                    const sys = this.solveSystem(input);
+                    if (sys) return sys;
+                }
+                // 二次方程式
+                if (/x\^?2/.test(input)) {
+                    const quad = this.solveQuadratic(input);
+                    if (quad) return quad;
+                }
+                // 三角関数
+                if (/(sin|cos|tan)/.test(input)) {
+                    const trig = this.solveTrig(input);
+                    if (trig) return trig;
+                }
+                // 微分
+                if (/微分|d\/dx/.test(input)) {
+                    const diff = this.differentiate(input);
+                    if (diff) return diff;
+                }
+                // 積分
+                if (/積分|∫/.test(input)) {
+                    const integ = this.integrate(input);
+                    if (integ) return integ;
+                }
+                // 数列
+                if (/(等差数列|等比数列|初項)/.test(input)) {
+                    const seq = this.sequence(input);
+                    if (seq) return seq;
+                }
+                // ベクトル
+                if (/\(.*\).*\(.*\)/.test(input)) {
+                    const vec = this.vector(input);
+                    if (vec) return vec;
+                }
+                // 確率・組み合わせ
+                if (/\d+C\d+/.test(input)) {
+                    const prob = this.probability(input);
+                    if (prob) return prob;
+                }
+                // 複素数
+                if (/\d+\s*[+\-]\s*\d+i/.test(input)) {
+                    const cmp = this.complex(input);
+                    if (cmp) return cmp;
+                }
+                return { steps: [], result: null, formula: true };
+            }
+        };
+        
+        // ==================== デフォルトスキル ====================
+        let skills = [
+            { id: 'shiritori', name: '🔤 しりとり', enabled: true, builtin: true, desc: '日本語しりとりゲーム', triggers: ['しりとり'] },
+            { id: 'math', name: '📐 高校数学', enabled: true, builtin: true, desc: '方程式・三角関数・微分積分・数列・ベクトル・確率・複素数', triggers: ['数学', '方程式', '計算', 'sin', 'cos', 'tan', '微分', '積分', '数列', 'ベクトル', '確率', '複素数', '連立', '二次方程式', 'x=', 'y='] },
+            { id: 'koten', name: '📜 古典文学', enabled: true, builtin: true, desc: '古文・助動詞・源氏物語など', triggers: ['古典', '古文', '助動詞', '源氏物語'] },
+            { id: 'gendai', name: '📖 現代文', enabled: true, builtin: true, desc: '読解・要約・小論文', triggers: ['現代文', '読解', '要約'] },
+            { id: 'codegen', name: '💻 コード生成', enabled: true, builtin: true, desc: '多言語コード生成', triggers: ['作って', 'コード', '生成'] },
+            { id: 'chat', name: '💬 会話', enabled: true, builtin: true, desc: '雑談・質問応答', triggers: [] }
+        ];
+        
+        // しりとり状態
+        let shiritoriActive = false;
+        let shiritoriUsed = new Set();
+        let shiritoriLastKana = '';
+        
+        // 会話セッション
+        let sessions = {};
+        let activeSessionId = null;
+        let currentConfig = { turn: 1, language: null, purpose: null, framework: null, dependencies: null, confirmed: false };
+        let currentMessages = [];
+        let generatedCode = '';
+        let currentLanguage = 'html';
+        
+        // ==================== 永続化 ====================
+        function saveSessions() {
+            const toStore = {};
+            for (let [id, sess] of Object.entries(sessions)) {
+                toStore[id] = { config: sess.config, messages: sess.messages, createdAt: sess.createdAt, updatedAt: Date.now() };
+            }
+            localStorage.setItem(STORAGE_SESSIONS, JSON.stringify(toStore));
+            if (activeSessionId) localStorage.setItem(STORAGE_ACTIVE, activeSessionId);
+        }
+        
+        function loadSessions() {
+            const raw = localStorage.getItem(STORAGE_SESSIONS);
+            if (raw) {
+                try {
+                    const obj = JSON.parse(raw);
+                    sessions = {};
+                    for (let [id, val] of Object.entries(obj)) {
+                        sessions[id] = { ...val, config: val.config || { turn: 1, language: null, purpose: null, framework: null, dependencies: null, confirmed: false } };
+                    }
+                } catch(e) {}
+            }
+            if (Object.keys(sessions).length === 0) {
+                const newId = Date.now().toString();
+                sessions[newId] = {
+                    config: { turn: 1, language: null, purpose: null, framework: null, dependencies: null, confirmed: false },
+                    messages: [{ role: 'ai', content: '🤖 CODE CORE V8.1 起動。\n【ターン1】言語を選んでください。\n\n📐 数学: 方程式・連立・二次関数・三角関数・微分積分・数列・ベクトル・確率・複素数' }],
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                };
+                activeSessionId = newId;
+                saveSessions();
+            } else {
+                const storedActive = localStorage.getItem(STORAGE_ACTIVE);
+                if (storedActive && sessions[storedActive]) activeSessionId = storedActive;
+                else activeSessionId = Object.keys(sessions)[0];
+            }
+            loadCurrentSession();
+        }
+        
+        function loadCurrentSession() {
+            if (!activeSessionId || !sessions[activeSessionId]) return;
+            const sess = sessions[activeSessionId];
+            currentConfig = JSON.parse(JSON.stringify(sess.config));
+            currentMessages = [...sess.messages];
+            renderMessages();
+            updateConfigDisplay();
+        }
+        
+        function saveCurrentSession() {
+            if (!activeSessionId) return;
+            sessions[activeSessionId] = { ...sessions[activeSessionId], config: JSON.parse(JSON.stringify(currentConfig)), messages: [...currentMessages], updatedAt: Date.now() };
+            saveSessions();
+        }
+        
+        function newSession() {
+            saveCurrentSession();
+            const newId = Date.now().toString();
+            sessions[newId] = {
+                config: { turn: 1, language: null, purpose: null, framework: null, dependencies: null, confirmed: false },
+                messages: [{ role: 'ai', content: '✨ 新しい会話を開始しました。\n【ターン1】言語を選んでください。' }],
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            };
+            activeSessionId = newId;
+            loadCurrentSession();
+            renderSessionList();
+            saveSessions();
+        }
+        
+        function switchSession(id) {
+            if (!sessions[id]) return;
+            saveCurrentSession();
+            activeSessionId = id;
+            loadCurrentSession();
+            renderSessionList();
+        }
+        
+        // ==================== UI描画 ====================
+        function renderMessages() {
+            const container = document.getElementById('messagesContainer');
+            if (!container) return;
+            container.innerHTML = currentMessages.map(msg => `<div class="message ${msg.role}-message"><div class="msg-bubble">${msg.content.replace(/\n/g, '<br>')}</div></div>`).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function addMessage(role, content) {
+            currentMessages.push({ role, content });
+            renderMessages();
+            saveCurrentSession();
+        }
+        
+        function renderSessionList() {
+            const container = document.getElementById('sessionList');
+            if (!container) return;
+            const sessionIds = Object.keys(sessions).sort((a,b) => sessions[b].updatedAt - sessions[a].updatedAt);
+            container.innerHTML = sessionIds.map(id => `
+                <div class="session-item ${id === activeSessionId ? 'active' : ''}" onclick="window.switchSession('${id}')">
+                    <div class="session-name"><span>📝 ${new Date(sessions[id].createdAt).toLocaleTimeString()}</span><span>${sessions[id].messages.length}件</span></div>
+                    <div class="session-date">${new Date(sessions[id].updatedAt).toLocaleDateString()}</div>
+                </div>
+            `).join('');
+        }
+        
+        function updateConfigDisplay() {
+            const steps = [
+                { label: '1. 言語選択', value: currentConfig.language || '未選択' },
+                { label: '2. 機能・目的', value: currentConfig.purpose || '未入力' },
+                { label: '3. フレームワーク', value: currentConfig.framework || '未入力' },
+                { label: '4. 依存関係', value: currentConfig.dependencies || '未入力' },
+                { label: '5. 最終確認', value: currentConfig.confirmed ? '✅ 確認済' : '未確認' }
+            ];
+            const container = document.getElementById('configSteps');
+            if (!container) return;
+            container.innerHTML = steps.map((step, idx) => {
+                const isCompleted = (currentConfig.turn > idx + 1) || (idx === 4 && currentConfig.confirmed);
+                const isCurrent = currentConfig.turn === idx + 1 && !(idx === 4 && currentConfig.confirmed);
+                return `<div class="step-item ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}"><div>${step.label}</div><div style="font-size:0.65rem; color:#3a506a;">${step.value}</div></div>`;
+            }).join('');
+            const genBtn = document.getElementById('generateBtn');
+            if (genBtn) genBtn.disabled = !currentConfig.confirmed;
+        }
+        
+        function renderSkillList() {
+            const container = document.getElementById('skillList');
+            if (container) {
+                container.innerHTML = skills.map(skill => `<div class="skill-card ${skill.enabled ? 'enabled' : ''}"><span class="skill-name">${skill.name}</span><div class="skill-toggle ${skill.enabled ? 'on' : ''}" onclick="toggleSkill('${skill.id}')"></div></div>`).join('');
+            }
+        }
+        
+        function renderSkillModal() {
+            const container = document.getElementById('skillModalList');
+            if (container) {
+                container.innerHTML = skills.map(skill => `
+                    <div class="skill-card" style="display:flex; justify-content:space-between;">
+                        <div><div style="font-weight:500;">${skill.name}</div><div style="font-size:0.6rem; color:#3a506a;">${skill.desc || ''}</div></div>
+                        <div style="display:flex; gap:0.5rem;">
+                            <div class="skill-toggle ${skill.enabled ? 'on' : ''}" onclick="toggleSkill('${skill.id}')"></div>
+                            ${!skill.builtin ? `<button onclick="deleteSkill('${skill.id}')" style="background:#f74e7d; padding:0.2rem 0.5rem; font-size:0.6rem;">削除</button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+        
+        function toggleSkill(id) {
+            const skill = skills.find(s => s.id === id);
+            if (skill) { skill.enabled = !skill.enabled; saveSkills(); renderSkillList(); renderSkillModal(); }
+        }
+        
+        function deleteSkill(id) {
+            skills = skills.filter(s => s.id !== id);
+            saveSkills(); renderSkillList(); renderSkillModal();
+        }
+        
+        function saveSkills() { localStorage.setItem(STORAGE_SKILLS, JSON.stringify(skills)); }
+        
+        function loadSkills() {
+            const stored = localStorage.getItem(STORAGE_SKILLS);
+            if (stored) {
+                try {
+                    const loaded = JSON.parse(stored);
+                    const defaultIds = ['shiritori', 'math', 'koten', 'gendai', 'codegen', 'chat'];
+                    skills = [...loaded.filter(s => defaultIds.includes(s.id)), ...loaded.filter(s => !defaultIds.includes(s.id))];
+                } catch(e) {}
+            }
+            renderSkillList();
+        }
+        
+        // ==================== スキル処理 ====================
+        function getEnabledSkills() { return skills.filter(s => s.enabled); }
+        
+        function detectSkill(input) {
+            const enabled = getEnabledSkills();
+            for (const skill of enabled) {
+                if (skill.triggers && skill.triggers.some(t => input.toLowerCase().includes(t.toLowerCase()))) return skill;
+            }
+            if (/作って|コード|生成/.test(input)) return skills.find(s => s.id === 'codegen');
+            if (/しりとり/.test(input)) return skills.find(s => s.id === 'shiritori');
+            if (/[x=]|sin|cos|tan|微分|積分|数列|ベクトル|確率/.test(input)) return skills.find(s => s.id === 'math');
+            return skills.find(s => s.id === 'chat');
+        }
+        
+        // しりとり処理
+        function handleShiritori(input) {
+            const word = input.trim().replace(/[！!？?。、]/g, '');
+            if (!shiritoriActive) {
+                if (/しりとり/.test(input)) {
+                    shiritoriActive = true;
+                    shiritoriUsed = new Set(['しりとり']);
+                    shiritoriLastKana = 'り';
+                    return { type: 'text', content: '🎮 しりとりスタート！\n「り」から始めてください！\n(「終了」で終わります)' };
+                }
+                return null;
+            }
+            if (/終了|やめ/.test(input)) {
+                shiritoriActive = false;
+                return { type: 'text', content: 'しりとりを終了しました！また遊びましょう 😊' };
+            }
+            const first = word[0];
+            if (first !== shiritoriLastKana) {
+                return { type: 'text', content: `❌ 「${shiritoriLastKana}」から始めてください！` };
+            }
+            if (shiritoriUsed.has(word)) {
+                return { type: 'text', content: `⚠️ 「${word}」はもう使われました！` };
+            }
+            const last = word[word.length - 1];
+            if (last === 'ん') {
+                shiritoriActive = false;
+                return { type: 'text', content: `💀 「ん」で終わりました！あなたの勝ちです！\nしりとり終了。` };
+            }
+            shiritoriUsed.add(word);
+            // AIの応答
+            const aiWords = ['りんご', 'ごりら', 'らっぱ', 'ぱんだ', 'だいこん', 'こあら', 'らくがき', 'きりん', 'んま'];
+            const candidates = aiWords.filter(w => w[0] === last && !shiritoriUsed.has(w));
+            const aiWord = candidates.length ? candidates[0] : 'りんご';
+            shiritoriUsed.add(aiWord);
+            shiritoriLastKana = aiWord[aiWord.length - 1];
+            return { type: 'text', content: `「${word}」 → カイ: 「${aiWord}」\n次は「${shiritoriLastKana}」から！` };
+        }
+        
+        // 数学処理
+        function handleMath(input) {
+            const result = MathEngine.solve(input);
+            if (result && result.result !== null) {
+                let html = `<div class="math-block">`;
+                if (result.steps) html += result.steps.map(s => `<div class="math-step">📐 ${s}</div>`).join('');
+                html += `<div class="math-result">✨ ${result.result}</div></div>`;
+                return { type: 'math', content: html };
+            }
+            if (result && result.formula) {
+                return { type: 'text', content: '📐 **数学モード**\n\n対応例:\n• 一次方程式: `2x + 3 = 7`\n• 連立方程式: `2x + y = 5, x + y = 3`\n• 二次方程式: `x² + 5x + 6 = 0`\n• 三角関数: `sin(30°)`\n• 微分: `3x²を微分`\n• 積分: `x²を積分`\n• 数列: `初項3 公差2`\n• ベクトル: `(1,2)・(3,4)`\n• 確率: `5C2`\n• 複素数: `3+4i`' };
+            }
+            return null;
+        }
+        
+        // コード生成
+        function generateCodeFile(language, purpose, framework, deps) {
+            const topic = purpose || 'アプリケーション';
+            if (language === 'python') {
+                return `#!/usr/bin/env python3
+# ${topic}
+# フレームワーク: ${framework || 'なし'}
+print("=== ${topic} ===")
+name = input("名前: ")
+print(f"こんにちは、{name}さん！")`;
+            }
+            if (language === 'rust') {
+                return `fn main() {
+    println!("=== ${topic} ===");
+    let mut s = String::new();
+    std::io::stdin().read_line(&mut s).unwrap();
+    println!("こんにちは、{}さん！", s.trim());
+}`;
+            }
+            if (language === 'java') {
+                return `public class Main {
+    public static void main(String[] args) {
+        System.out.println("=== ${topic} ===");
+    }
+}`;
+            }
+            return `<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><title>${topic}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:sans-serif;background:linear-gradient(135deg,#667eea,#764ba2);min-height:100vh;display:flex;justify-content:center;align-items:center}
+.card{background:white;border-radius:24px;padding:2rem;text-align:center;max-width:500px}
+button{background:#667eea;color:white;border:none;padding:0.75rem 1.5rem;border-radius:40px;margin-top:1rem;cursor:pointer}
+</style>
+</head>
+<body><div class="card"><h1>✨ ${topic}</h1><p>${framework || ''}</p><button onclick="alert('こんにちは')">クリック</button></div></body>
+</html>`;
+        }
+        
+        function updateCodePreview(code, language) {
+            const previewDiv = document.getElementById('codePreview');
+            if (previewDiv) previewDiv.innerHTML = `<pre>${escapeHtml(code)}</pre>`;
+            generatedCode = code;
+            currentLanguage = language;
+            const iframe = document.getElementById('livePreview');
+            if (iframe) {
+                if (language === 'html') iframe.srcdoc = code;
+                else iframe.srcdoc = `<html><body style="background:#1e1e2e;color:#fff;padding:1rem;"><pre>${escapeHtml(code.slice(0, 500))}</pre></body></html>`;
+            }
+        }
+        
+        function escapeHtml(str) { return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]); }
+        
+        // ==================== AI応答 ====================
+        async function aiResponse(userMessage) {
+            // スキル判定
+            const skill = detectSkill(userMessage);
+            if (skill && skill.id === 'shiritori') {
+                const result = handleShiritori(userMessage);
+                if (result) return result.content;
+            }
+            if (skill && skill.id === 'math') {
+                const result = handleMath(userMessage);
+                if (result) return result.content;
+            }
+            
+            // 5ターン構成
+            const lower = userMessage.toLowerCase();
+            switch(currentConfig.turn) {
+                case 1:
+                    const langMap = { html:'html', python:'python', rust:'rust', c:'c', java:'java', typescript:'typescript' };
+                    let detected = null;
+                    for (let [k, v] of Object.entries(langMap)) if (lower.includes(k)) { detected = v; break; }
+                    if (detected) {
+                        currentConfig.language = detected;
+                        currentConfig.turn = 2;
+                        updateConfigDisplay();
+                        saveCurrentSession();
+                        return `✅ 言語「${detected.toUpperCase()}」を選択しました。\n\n【ターン2】どんなアプリケーションを作りたいですか？\n(例: Web API, CLIツール, ゲーム, データ分析)`;
+                    }
+                    return `【ターン1】言語を指定: HTML/CSS/JS, Python, Rust, C/C++, Java, TypeScript`;
+                case 2:
+                    currentConfig.purpose = userMessage;
+                    currentConfig.turn = 3;
+                    updateConfigDisplay();
+                    saveCurrentSession();
+                    return `✅ 目的を記録しました。\n\n【ターン3】フレームワークは？ (例: Flask, React, なし)`;
+                case 3:
+                    currentConfig.framework = userMessage;
+                    currentConfig.turn = 4;
+                    updateConfigDisplay();
+                    saveCurrentSession();
+                    return `✅ フレームワークを記録しました。\n\n【ターン4】依存関係は？ (例: Docker, PostgreSQL, なし)`;
+                case 4:
+                    currentConfig.dependencies = userMessage;
+                    currentConfig.turn = 5;
+                    updateConfigDisplay();
+                    saveCurrentSession();
+                    return `✅ 依存関係を記録しました。\n\n【ターン5 - 最終確認】\n📌 言語: ${currentConfig.language?.toUpperCase()}\n📌 目的: ${currentConfig.purpose}\n📌 フレームワーク: ${currentConfig.framework}\n📌 依存関係: ${currentConfig.dependencies}\n\n「はい」で確定、「いいえ」で最初から。`;
+                case 5:
+                    if (lower.includes('はい') || lower.includes('ok')) {
+                        currentConfig.confirmed = true;
+                        updateConfigDisplay();
+                        saveCurrentSession();
+                        return `✅ 構成確定！\n右下の「第6回: 一括コード生成」ボタンを押してください。`;
+                    } else if (lower.includes('いいえ')) {
+                        currentConfig = { turn: 1, language: null, purpose: null, framework: null, dependencies: null, confirmed: false };
+                        updateConfigDisplay();
+                        saveCurrentSession();
+                        return `最初から。\n【ターン1】言語を選んでください。`;
+                    }
+                    return `「はい」で確定、「いいえ」で最初から。`;
+                default:
+                    return `構成確定済みです。生成ボタンを押してください。`;
+            }
+        }
+        
+        function bulkGenerate() {
+            if (!currentConfig.confirmed) { alert('5回対話を完了し、「はい」で確定させてください。'); return; }
+            const code = generateCodeFile(currentConfig.language, currentConfig.purpose, currentConfig.framework, currentConfig.dependencies);
+            updateCodePreview(code, currentConfig.language);
+            addMessage('ai', `✨ 一括生成完了！\n言語: ${currentConfig.language?.toUpperCase()}\n右パネルで確認できます。`);
+        }
+        
+        // ==================== GitHub学習 ====================
+        async function learnFromGitHub(url) {
+            const statusEl = document.getElementById('githubStatus');
+            if (statusEl) statusEl.textContent = '学習中...';
+            try {
+                let rawUrl = url.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+                const res = await fetch(rawUrl);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const text = await res.text();
+                try {
+                    const json = JSON.parse(text);
+                    const skillData = json.skill || json;
+                    if (skillData.id && skillData.name) {
+                        const newSkill = { id: skillData.id, name: skillData.name, enabled: true, builtin: false, desc: skillData.desc || '', triggers: skillData.triggers || [] };
+                        if (!skills.find(s => s.id === newSkill.id)) {
+                            skills.push(newSkill);
+                            saveSkills();
+                            renderSkillList();
+                            renderSkillModal();
+                            if (statusEl) statusEl.textContent = `✅ 「${newSkill.name}」を追加しました`;
+                        } else { if (statusEl) statusEl.textContent = `⚠️ 既に存在します`; }
+                    } else { if (statusEl) statusEl.textContent = '❌ 有効なスキル定義ではありません'; }
+                } catch(e) { if (statusEl) statusEl.textContent = '❌ JSON解析失敗'; }
+            } catch(e) { if (statusEl) statusEl.textContent = `❌ エラー: ${e.message}`; }
+        }
+        
+        // ==================== データ出力 ====================
+        async function downloadProtectedData() {
+            const pwd = prompt("パスワードを入力:");
+            if (!pwd) return;
+            const hash = await sha256(pwd);
+            if (hash !== await sha256(REQUIRED_PASSWORD)) { alert("パスワードが違います"); return; }
+            const data = { version: "V8.1", exportedAt: new Date().toISOString(), sessions, skills };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `codecore_${Date.now()}.json`;
+            a.click();
+            alert("出力完了");
+        }
+        
+        function exportSkills() {
+            const data = { version: "V8.1", exportedAt: new Date().toISOString(), skills: skills.filter(s => !s.builtin) };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `skills_${Date.now()}.json`;
+            a.click();
+        }
+        
+        function copyCode() { if (generatedCode) { navigator.clipboard.writeText(generatedCode); alert("コピーしました"); } }
+        function downloadCode() {
+            if (generatedCode) {
+                const blob = new Blob([generatedCode], { type: "text/plain" });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `code.${currentLanguage === 'html' ? 'html' : currentLanguage === 'python' ? 'py' : 'txt'}`;
+                a.click();
+            }
+        }
+        
+        async function handleSend() {
+            const input = document.getElementById('userInput');
+            const text = input.value.trim();
+            if (!text) return;
+            addMessage('user', text);
+            input.value = '';
+            const reply = await aiResponse(text);
+            addMessage('ai', reply);
+        }
+        
+        function updateQuickReplies() {
+            const container = document.getElementById('quickReplies');
+            if (container) {
+                container.innerHTML = [
+                    'HTMLでボタン', 'Pythonで計算', 'しりとりしよう',
+                    'x²+5x+6=0', 'sin(30°)', '3x²を微分', '(1,2)・(3,4)', '5C2'
+                ].map(r => `<span class="qr-btn" onclick="document.getElementById('userInput').value='${r}'; handleSend();">${r}</span>`).join('');
+            }
+        }
+        
+        function init() {
+            loadSessions();
+            loadSkills();
+            renderSessionList();
+            updateConfigDisplay();
+            updateQuickReplies();
+            
+            document.getElementById('sendBtn').onclick = handleSend;
+            document.getElementById('generateBtn').onclick = bulkGenerate;
+            document.getElementById('newSessionBtn').onclick = newSession;
+            document.getElementById('downloadDataBtn').onclick = downloadProtectedData;
+            document.getElementById('exportSkillsBtn').onclick = exportSkills;
+            document.getElementById('copyCodeBtn').onclick = copyCode;
+            document.getElementById('downloadCodeBtn').onclick = downloadCode;
+            document.getElementById('learnFromGitHub').onclick = () => { const url = document.getElementById('githubUrl').value; if (url) learnFromGitHub(url); };
+            document.getElementById('openSkillModal').onclick = () => { renderSkillModal(); document.getElementById('skillModal').style.display = 'flex'; };
+            document.getElementById('closeSkillModal').onclick = () => document.getElementById('skillModal').style.display = 'none';
+            document.getElementById('modalLearnBtn').onclick = () => { const url = document.getElementById('modalGithubUrl').value; if (url) learnFromGitHub(url); };
+            document.getElementById('userInput').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } });
+            
+            window.switchSession = switchSession;
+            window.toggleSkill = toggleSkill;
+            window.deleteSkill = deleteSkill;
+            window.handleSend = handleSend;
+        }
+        
+        init();
+    })();
+</script>
+</body>
+</html>
