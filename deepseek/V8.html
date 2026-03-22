@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODE CORE V8 - 学習型AIコード生成</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'Noto Sans JP', 'JetBrains Mono', monospace;
+            background: #070910;
+            color: #bfcfe8;
+            overflow: hidden;
+        }
+        .app {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+        /* 左パネル - セッション管理 */
+        .session-panel {
+            width: 280px;
+            background: #0b0d18;
+            border-right: 1px solid #1b2236;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .new-session-btn {
+            background: #1ed98a;
+            color: #000;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .session-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .session-item {
+            background: #10131e;
+            border: 1px solid #1b2236;
+            border-radius: 12px;
+            padding: 0.6rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .session-item.active {
+            border-color: #4f8ef7;
+            background: rgba(79, 142, 247, 0.1);
+        }
+        .session-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+            display: flex;
+            justify-content: space-between;
+        }
+        .session-date {
+            font-size: 0.65rem;
+            color: #3a506a;
+        }
+        .config-steps {
+            margin-top: 1rem;
+            border-top: 1px solid #1b2236;
+            padding-top: 1rem;
+        }
+        .step-item {
+            padding: 0.5rem;
+            border-left: 2px solid #3a506a;
+            margin-bottom: 0.5rem;
+            font-size: 0.7rem;
+        }
+        .step-item.completed { border-left-color: #1ed98a; }
+        .step-item.current { border-left-color: #f5c031; background: rgba(245, 192, 49, 0.05); }
+        .generate-btn {
+            background: #1ed98a;
+            color: #000;
+            width: 100%;
+            padding: 0.6rem;
+            border: none;
+            border-radius: 40px;
+            margin-top: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .generate-btn:disabled {
+            background: #3a506a;
+            cursor: not-allowed;
+        }
+        .download-btns {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .download-btns button {
+            flex: 1;
+            background: #1b2236;
+            border: 1px solid #2d3748;
+            padding: 0.4rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            cursor: pointer;
+        }
+        /* 中央チャット */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0c0f1a;
+        }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        .message {
+            max-width: 85%;
+            animation: fadeIn 0.2s;
+        }
+        .user-message { align-self: flex-end; }
+        .ai-message { align-self: flex-start; }
+        .msg-bubble {
+            padding: 0.6rem 1rem;
+            border-radius: 18px;
+            line-height: 1.5;
+            font-size: 0.85rem;
+        }
+        .user-message .msg-bubble {
+            background: #4f8ef7;
+            border-bottom-right-radius: 4px;
+        }
+        .ai-message .msg-bubble {
+            background: #10131e;
+            border: 1px solid #1b2236;
+            border-bottom-left-radius: 4px;
+        }
+        .input-area {
+            padding: 1rem;
+            background: #0b0d18;
+            border-top: 1px solid #1b2236;
+        }
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+        textarea {
+            flex: 1;
+            background: #10131e;
+            border: 1px solid #1b2236;
+            border-radius: 24px;
+            padding: 0.6rem 1rem;
+            color: #bfcfe8;
+            font-family: inherit;
+            font-size: 0.85rem;
+            resize: none;
+            outline: none;
+        }
+        button {
+            background: #4f8ef7;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 40px;
+            color: white;
+            cursor: pointer;
+        }
+        /* 右パネル */
+        .right-panel {
+            width: 400px;
+            background: #0b0d18;
+            border-left: 1px solid #1b2236;
+            display: flex;
+            flex-direction: column;
+        }
+        .skill-section, .code-section {
+            border-bottom: 1px solid #1b2236;
+            padding: 0.8rem;
+        }
+        .skill-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .skill-list {
+            max-height: 200px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+        .skill-card {
+            background: #10131e;
+            border: 1px solid #1b2236;
+            border-radius: 8px;
+            padding: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .skill-card.enabled { border-color: #4f8ef7; }
+        .skill-name { font-size: 0.75rem; font-weight: 500; }
+        .skill-toggle {
+            width: 32px;
+            height: 18px;
+            border-radius: 20px;
+            background: #3a506a;
+            cursor: pointer;
+            position: relative;
+            transition: 0.2s;
+        }
+        .skill-toggle.on { background: #4f8ef7; }
+        .skill-toggle::after {
+            content: '';
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: white;
+            top: 2px;
+            left: 2px;
+            transition: 0.2s;
+        }
+        .skill-toggle.on::after { left: 16px; }
+        .github-input {
+            display: flex;
+            gap: 0.3rem;
+            margin-top: 0.5rem;
+        }
+        .github-input input {
+            flex: 1;
+            background: #10131e;
+            border: 1px solid #1b2236;
+            border-radius: 20px;
+            padding: 0.4rem 0.6rem;
+            font-size: 0.7rem;
+            color: white;
+        }
+        .code-preview {
+            flex: 1;
+            overflow: auto;
+            padding: 0.5rem;
+        }
+        .code-preview pre {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            white-space: pre-wrap;
+        }
+        .preview-frame {
+            height: 150px;
+            border: 1px solid #1b2236;
+            border-radius: 8px;
+            background: white;
+            margin-top: 0.5rem;
+        }
+        .preview-frame iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .skill-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.6rem;
+            background: #1b2236;
+            margin-left: 0.3rem;
+        }
+        .quick-replies {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-top: 0.5rem;
+        }
+        .qr-btn {
+            background: #10131e;
+            border: 1px solid #1b2236;
+            padding: 0.2rem 0.6rem;
+            border-radius: 16px;
+            font-size: 0.65rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <!-- 左: セッション管理パネル -->
+    <div class="session-panel">
+        <div class="session-header">
+            <span style="font-weight: bold;">📋 会話セッション</span>
+            <button class="new-session-btn" id="newSessionBtn">+ 新規会話</button>
+        </div>
+        <div class="session-list" id="sessionList"></div>
+        <div class="config-steps" id="configSteps"></div>
+        <button class="generate-btn" id="generateBtn" disabled>🚀 第6回: 一括コード生成</button>
+        <div class="download-btns">
+            <button id="downloadDataBtn">🔒 データ保護出力</button>
+            <button id="exportSkillsBtn">📤 スキル出力</button>
+        </div>
+        <div style="font-size:0.6rem; text-align:center; margin-top:0.5rem; color:#3a506a;">🔐 パスワード保護有効</div>
+    </div>
+
+    <!-- 中央: チャット -->
+    <div class="chat-area">
+        <div class="messages" id="messagesContainer">
+            <div class="message ai-message">
+                <div class="msg-bubble">
+                    🤖 <strong>CODE CORE V8</strong><br>
+                    5回対話 → コード生成。スキル拡張・会話保存・GitHub学習対応。<br>
+                    <strong>【ターン1】</strong> 言語: HTML/CSS/JS, Python, Rust, C/C++, Java, TypeScript
+                </div>
+            </div>
+        </div>
+        <div class="input-area">
+            <div class="input-group">
+                <textarea id="userInput" rows="2" placeholder="メッセージを入力... (Enter送信)"></textarea>
+                <button id="sendBtn">📤 送信</button>
+            </div>
+            <div class="quick-replies" id="quickReplies"></div>
+        </div>
+    </div>
+
+    <!-- 右: スキル管理 + コード表示 -->
+    <div class="right-panel">
+        <div class="skill-section">
+            <div class="skill-header">
+                <span>⚡ スキル管理</span>
+                <button id="openSkillModal" style="background:#1b2236; padding:0.2rem 0.6rem; font-size:0.7rem;">管理</button>
+            </div>
+            <div class="skill-list" id="skillList"></div>
+            <div class="github-input">
+                <input type="text" id="githubUrl" placeholder="GitHub raw URL (スキル定義JSON)">
+                <button id="learnFromGitHub">学習</button>
+            </div>
+            <div id="githubStatus" style="font-size:0.6rem; margin-top:0.3rem; color:#f5c031;"></div>
+        </div>
+        <div class="code-section">
+            <div style="display:flex; gap:0.3rem; margin-bottom:0.5rem;">
+                <span>📄 生成コード</span>
+                <button id="copyCodeBtn" style="background:#1b2236; padding:0.2rem 0.5rem; font-size:0.6rem;">コピー</button>
+                <button id="downloadCodeBtn" style="background:#1b2236; padding:0.2rem 0.5rem; font-size:0.6rem;">DL</button>
+            </div>
+            <div class="code-preview" id="codePreview">
+                <pre>まだコードがありません</pre>
+            </div>
+            <div class="preview-frame" id="previewFrame">
+                <iframe id="livePreview" srcdoc="<html><body style='background:#1e1e2e;color:#fff;display:flex;align-items:center;justify-content:center;height:100%'>プレビュー</body></html>"></iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- スキル管理モーダル -->
+<div id="skillModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#0b0d18; border:1px solid #1b2236; border-radius:16px; width:500px; max-width:90%; max-height:80vh; overflow:auto; padding:1rem;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:1rem;">
+            <h3>⚡ スキル管理</h3>
+            <button id="closeSkillModal" style="background:none; font-size:1.2rem;">✕</button>
+        </div>
+        <div id="skillModalList" style="display:flex; flex-direction:column; gap:0.5rem;"></div>
+        <div style="margin-top:1rem; padding-top:0.5rem; border-top:1px solid #1b2236;">
+            <h4 style="font-size:0.8rem;">📥 GitHubからスキル追加</h4>
+            <div style="display:flex; gap:0.3rem; margin-top:0.3rem;">
+                <input type="text" id="modalGithubUrl" placeholder="https://raw.githubusercontent.com/.../skill.json" style="flex:1; background:#10131e; border:1px solid #1b2236; border-radius:20px; padding:0.4rem; font-size:0.7rem; color:white;">
+                <button id="modalLearnBtn" style="background:#1ed98a; color:#000;">追加</button>
+            </div>
+            <div id="modalGithubStatus" style="font-size:0.6rem; margin-top:0.3rem;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ==================== 定数・設定 ====================
+        const REQUIRED_PASSWORD = "@ppipinopi_0123";
+        const STORAGE_SESSIONS = 'core_sessions_v8';
+        const STORAGE_ACTIVE = 'core_active_v8';
+        const STORAGE_SKILLS = 'core_skills_v8';
+        
+        // SHA-256 ハッシュ関数
+        async function sha256(message) {
+            const msgBuffer = new TextEncoder().encode(message);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        // ==================== デフォルトスキル ====================
+        let skills = [
+            { id: 'shiritori', name: '🔤 しりとり', enabled: true, builtin: true, desc: '日本語しりとりゲーム', triggers: ['しりとり', 'shiritori'] },
+            { id: 'math', name: '📐 数学', enabled: true, builtin: true, desc: '方程式・三角関数・微分積分', triggers: ['数学', '方程式', '計算', 'sin', 'cos', 'tan', '微分', '積分'] },
+            { id: 'koten', name: '📜 古典文学', enabled: true, builtin: true, desc: '古文・助動詞・源氏物語など', triggers: ['古典', '古文', '助動詞', '源氏物語', '枕草子'] },
+            { id: 'gendai', name: '📖 現代文', enabled: true, builtin: true, desc: '読解・要約・小論文', triggers: ['現代文', '読解', '要約', '小論文'] },
+            { id: 'codegen', name: '💻 コード生成', enabled: true, builtin: true, desc: '多言語コード生成', triggers: ['作って', 'コード', '生成', 'プログラム'] },
+            { id: 'chat', name: '💬 会話', enabled: true, builtin: true, desc: '雑談・質問応答', triggers: [] }
+        ];
+        
+        // 会話セッション管理
+        let sessions = {};
+        let activeSessionId = null;
+        let currentConfig = { turn: 1, language: null, purpose: null, framework: null, dependencies: null, confirmed: false };
+        let currentMessages = [];
+        let generatedCode = '';
+        let currentLanguage = 'html';
+        
+        // ==================== 永続化関数 ====================
+        function saveSessions() {
+            const toStore = {};
+            for (let [id, sess] of Object.entries(sessions)) {
+                toStore[id] = {
+                    config: sess.config,
+                    messages: sess.messages,
+                    createdAt: sess.createdAt,
+                    updatedAt: Date.now()
+                };
+            }
+            localStorage.setItem(STORAGE_SESSIONS, JSON.stringify(toStore));
+            if (activeSessionId) localStorage.setItem(STORAGE_ACTIVE, activeSessionId);
+        }
+        
+        function loadSessions() {
+            const raw = localStorage.getItem(STORAGE_SESSIONS);
+            if (raw) {
+                try {
+                    const obj = JSON.parse(raw);
+                    sessions = {};
+                    for (let [id, val] of Object.entries(obj)) {
+                        sessions[id] = { ...val, config: val.config || { turn: 1, language: null, purpose: null, framework: null, dependencies: null, confirmed: false } };
+                    }
+                } catch(e) {}
+            }
+            if (Object.keys(sessions).length === 0) {
+                const newId = Date.now().toString();
+                sessions[newId] = {
+                    config: { turn: 1, language: null, purpose: null, framework: null, dependencies: null, confirmed: false },
+                    messages: [{ role: 'ai', content: '🤖 CODE CORE V8 起動。\n【ターン1】言語を選んでください。' }],
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                };
+                activeSessionId = newId;
+                saveSessions();
+            } else {
+                const storedActive = localStorage.getItem(STORAGE_ACTIVE);
+                if (storedActive && sessions[storedActive]) activeSessionId = storedActive;
+                else activeSessionId = Object.keys(sessions)[0];
+            }
+            loadCurrentSession();
+        }
+        
+        function loadCurrentSession() {
+            if (!activeSessionId || !sessions[activeSessionId]) return;
+            const sess = sessions[activeSessionId];
+            currentConfig = JSON.parse(JSON.stringify(sess.config));
+            currentMessages = [...sess.messages];
+            renderMessages();
+            updateConfigDisplay();
+        }
+        
+        function saveCurrentSession() {
+            if (!activeSessionId) return;
+            sessions[activeSessionId] = {
+                ...sessions[activeSessionId],
+                config: JSON.parse(JSON.stringify(currentConfig)),
+                messages: [...currentMessages],
+                updatedAt: Date.now()
+            };
+            saveSessions();
+        }
+        
+        function newSession() {
+            saveCurrentSession();
+            const newId = Date.now().toString();
+            sessions[newId] = {
+                config: { turn: 1, language: null, purpose: null, framework: null, dependencies: null, confirmed: false },
+                messages: [{ role: 'ai', content: '✨ 新しい会話を開始しました。\n【ターン1】言語を選んでください。' }],
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            };
+            activeSessionId = newId;
+            loadCurrentSession();
+            renderSessionList();
+            saveSessions();
+        }
+        
+        function switchSession(id) {
+            if (!sessions[id]) return;
+            saveCurrentSession();
+            activeSessionId = id;
+            loadCurrentSession();
+            renderSessionList();
+        }
+        
+        // ==================== UI 描画 ====================
+        function renderMessages() {
+            const container = document.getElementById('messagesContainer');
+            if (!container) return;
+            container.innerHTML = currentMessages.map(msg => `
+                <div class="message ${msg.role}-message">
+                    <div class="msg-bubble">${msg.content.replace(/\n/g, '<br>')}</div>
+                </div>
+            `).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        function addMessage(role, content) {
+            currentMessages.push({ role, content });
+            renderMessages();
+            saveCurrentSession();
+        }
+        
+        function renderSessionList() {
+            const container = document.getElementById('sessionList');
+            if (!container) return;
+            const sessionIds = Object.keys(sessions).sort((a,b) => sessions[b].updatedAt - sessions[a].updatedAt);
+            container.innerHTML = sessionIds.map(id => `
+                <div class="session-item ${id === activeSessionId ? 'active' : ''}" onclick="window.switchSession('${id}')">
+                    <div class="session-name">
+                        <span>📝 ${new Date(sessions[id].createdAt).toLocaleTimeString()}</span>
+                        <span>${sessions[id].messages.length}件</span>
+                    </div>
+                    <div class="session-date">${new Date(sessions[id].updatedAt).toLocaleDateString()}</div>
+                </div>
+            `).join('');
+        }
+        
+        function updateConfigDisplay() {
+            const steps = [
+                { label: '1. 言語選択', value: currentConfig.language || '未選択' },
+                { label: '2. 機能・目的', value: currentConfig.purpose || '未入力' },
+                { label: '3. フレームワーク', value: currentConfig.framework || '未入力' },
+                { label: '4. 依存関係', value: currentConfig.dependencies || '未入力' },
+                { label: '5. 最終確認', value: currentConfig.confirmed ? '✅ 確認済' : '未確認' }
+            ];
+            const container = document.getElementById('configSteps');
+            if (!container) return;
+            container.innerHTML = steps.map((step, idx) => {
+                const isCompleted = (currentConfig.turn > idx + 1) || (idx === 4 && currentConfig.confirmed);
+                const isCurrent = currentConfig.turn === idx + 1 && !(idx === 4 && currentConfig.confirmed);
+                return `<div class="step-item ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}">
+                    <div>${step.label}</div>
+                    <div style="font-size:0.65rem; color:#3a506a;">${step.value}</div>
+                </div>`;
+            }).join('');
+            const genBtn = document.getElementById('generateBtn');
+            if (genBtn) genBtn.disabled = !currentConfig.confirmed;
+        }
+        
+        function renderSkillList() {
+            const container = document.getElementById('skillList');
+            if (!container) return;
+            container.innerHTML = skills.map(skill => `
+                <div class="skill-card ${skill.enabled ? 'enabled' : ''}">
+                    <span class="skill-name">${skill.name}</span>
+                    <div class="skill-toggle ${skill.enabled ? 'on' : ''}" onclick="toggleSkill('${skill.id}')"></div>
+                </div>
+            `).join('');
+        }
+        
+        function renderSkillModal() {
+            const container = document.getElementById('skillModalList');
+            if (!container) return;
+            container.innerHTML = skills.map(skill => `
+                <div class="skill-card" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-weight:500;">${skill.name}</div>
+                        <div style="font-size:0.6rem; color:#3a506a;">${skill.desc || ''}</div>
+                    </div>
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <div class="skill-toggle ${skill.enabled ? 'on' : ''}" onclick="toggleSkill('${skill.id}')"></div>
+                        ${!skill.builtin ? `<button onclick="deleteSkill('${skill.id}')" style="background:#f74e7d; padding:0.2rem 0.5rem; font-size:0.6rem;">削除</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function toggleSkill(id) {
+            const skill = skills.find(s => s.id === id);
+            if (skill) {
+                skill.enabled = !skill.enabled;
+                saveSkills();
+                renderSkillList();
+                renderSkillModal();
+            }
+        }
+        
+        function deleteSkill(id) {
+            skills = skills.filter(s => s.id !== id);
+            saveSkills();
+            renderSkillList();
+            renderSkillModal();
+        }
+        
+        function saveSkills() {
+            localStorage.setItem(STORAGE_SKILLS, JSON.stringify(skills));
+        }
+        
+        function loadSkills() {
+            const stored = localStorage.getItem(STORAGE_SKILLS);
+            if (stored) {
+                try {
+                    const loaded = JSON.parse(stored);
+                    // デフォルトスキルは残す
+                    const defaultIds = ['shiritori', 'math', 'koten', 'gendai', 'codegen', 'chat'];
+                    const defaultSkills = loaded.filter(s => defaultIds.includes(s.id));
+                    const customSkills = loaded.filter(s => !defaultIds.includes(s.id));
+                    skills = [...defaultSkills, ...customSkills];
+                } catch(e) {}
+            }
+            renderSkillList();
+        }
+        
+        // ==================== スキル処理 ====================
+        function getEnabledSkills() {
+            return skills.filter(s => s.enabled);
+        }
+        
+        function detectSkill(input) {
+            const enabled = getEnabledSkills();
+            for (const skill of enabled) {
+                if (skill.triggers && skill.triggers.some(t => input.toLowerCase().includes(t.toLowerCase()))) {
+                    return skill;
+                }
+            }
+            // コード生成の特殊判定
+            if (/作って|コード|生成|作りたい/.test(input)) {
+                return skills.find(s => s.id === 'codegen');
+            }
+            return skills.find(s => s.id === 'chat');
+        }
+        
+        // ==================== 言語推論 ====================
+        function inferLanguage(input) {
+            const lower = input.toLowerCase();
+            if (/(html|css|js|javascript|web|サイト)/.test(lower)) return 'html';
+            if (/(python|py)/.test(lower)) return 'python';
+            if (/(rust|rs)/.test(lower)) return 'rust';
+            if (/(c\+\+|cpp|c言語)/.test(lower)) return 'c';
+            if (/(java|ジャバ)/.test(lower)) return 'java';
+            if (/(typescript|ts)/.test(lower)) return 'typescript';
+            return 'html';
+        }
+        
+        // ==================== コード生成 ====================
+        function generateCode(language, purpose, framework, deps) {
+            const topic = purpose || 'アプリケーション';
+            if (language === 'python') {
+                return `#!/usr/bin/env python3
+# ${topic}
+# フレームワーク: ${framework || 'なし'}
+# 依存関係: ${deps || 'なし'}
+
+def main():
+    print("=== ${topic} ===")
+    name = input("名前を入力してください: ")
+    print(f"こんにちは、{name}さん！")
+
+if __name__ == "__main__":
+    main()`;
+            }
+            if (language === 'rust') {
+                return `// ${topic}
+fn main() {
+    println!("=== ${topic} ===");
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+    println!("こんにちは、{}さん！", input.trim());
+}`;
+            }
+            if (language === 'java') {
+                return `// ${topic}
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("=== ${topic} ===");
+    }
+}`;
+            }
+            if (language === 'typescript') {
+                return `// ${topic}
+interface AppConfig {
+    name: string;
+    version: string;
+}
+
+const config: AppConfig = {
+    name: "${topic}",
+    version: "1.0.0"
+};
+
+console.log(\`\${config.name} v\${config.version} 起動\`);`;
+            }
+            // HTML デフォルト
+            return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${topic}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+        .card {
+            background: white;
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 { color: #333; margin-bottom: 1rem; }
+        p { color: #666; margin: 0.5rem 0; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 40px;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
+        button:hover { background: #5a67d8; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>✨ ${topic}</h1>
+        <p>${framework ? 'フレームワーク: ' + framework : ''}</p>
+        <p>${deps ? '依存関係: ' + deps : ''}</p>
+        <button onclick="alert('こんにちは！')">クリック</button>
+    </div>
+    <script>
+        console.log("${topic} が起動しました");
+    <\/script>
+</body>
+</html>`;
+        }
+        
+        function updateCodePreview(code, language) {
+            const previewDiv = document.getElementById('codePreview');
+            if (previewDiv) {
+                previewDiv.innerHTML = `<pre>${escapeHtml(code)}</pre>`;
+            }
+            generatedCode = code;
+            currentLanguage = language;
+            
+            // HTMLプレビュー
+            if (language === 'html') {
+                const iframe = document.getElementById('livePreview');
+                if (iframe) {
+                    iframe.srcdoc = code;
+                }
+            } else {
+                const iframe = document.getElementById('livePreview');
+                if (iframe) {
+                    iframe.srcdoc = `<html><body style="background:#1e1e2e;color:#fff;display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;">
+                        <h3>${language.toUpperCase()} コード</h3>
+                        <pre style="background:#0a0c15;padding:1rem;border-radius:8px;max-width:90%;overflow:auto;">${escapeHtml(code.slice(0, 300))}</pre>
+                        <p>※ ${language} の実行にはローカル環境が必要です</p>
+                    </body></html>`;
+                }
+            }
+        }
+        
+        function escapeHtml(str) {
+            return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[m]);
+        }
+        
+        // ==================== AI応答エンジン ====================
+        async function aiResponse(userMessage) {
+            const lower = userMessage.trim().toLowerCase();
+            let reply = '';
+            
+            switch(currentConfig.turn) {
+                case 1:
+                    const langMap = { html:'html', css:'html', javascript:'html', js:'html', python:'python', py:'python', rust:'rust', rs:'rust', c:'c', 'c++':'c', cpp:'c', java:'java', typescript:'typescript', ts:'typescript' };
+                    let detected = null;
+                    for (let [k, v] of Object.entries(langMap)) {
+                        if (lower.includes(k)) { detected = v; break; }
+                    }
+                    if (detected) {
+                        currentConfig.language = detected;
+                        reply = `✅ 言語「${detected.toUpperCase()}」を選択しました。\n\n【ターン2】どんなアプリケーションを作りたいですか？\n(例: Web API, CLIツール, ゲーム, データ分析, ポートフォリオ)`;
+                        currentConfig.turn = 2;
+                    } else {
+                        reply = `【ターン1】言語を指定してください:\n• HTML/CSS/JS\n• Python\n• Rust\n• C/C++\n• Java\n• TypeScript`;
+                    }
+                    break;
+                case 2:
+                    currentConfig.purpose = userMessage;
+                    reply = `✅ 目的を記録しました。\n\n【ターン3】使用するフレームワークやライブラリはありますか？\n(例: Flask, React, Axum, なし)`;
+                    currentConfig.turn = 3;
+                    break;
+                case 3:
+                    currentConfig.framework = userMessage;
+                    reply = `✅ フレームワークを記録しました。\n\n【ターン4】特別な依存関係や環境設定はありますか？\n(例: Docker, PostgreSQL, なし)`;
+                    currentConfig.turn = 4;
+                    break;
+                case 4:
+                    currentConfig.dependencies = userMessage;
+                    reply = `✅ 依存関係を記録しました。\n\n【ターン5 - 最終確認】\n以下の構成でよろしいですか？\n\n📌 言語: ${currentConfig.language?.toUpperCase()}\n📌 目的: ${currentConfig.purpose}\n📌 フレームワーク: ${currentConfig.framework}\n📌 依存関係: ${currentConfig.dependencies}\n\n「はい」で確定、「いいえ」で最初から。`;
+                    currentConfig.turn = 5;
+                    break;
+                case 5:
+                    if (lower.includes('はい') || lower.includes('ok') || lower.includes('確定')) {
+                        currentConfig.confirmed = true;
+                        reply = `✅ 構成が確定しました！\n\n🎉 右下の「第6回: 一括コード生成」ボタンが有効になりました。クリックしてください。`;
+                    } else if (lower.includes('いいえ') || lower.includes('最初から')) {
+                        currentConfig = { turn: 1, language: null, purpose: null, framework: null, dependencies: null, confirmed: false };
+                        reply = `最初からやり直します。\n【ターン1】言語を選んでください。`;
+                    } else {
+                        reply = `「はい」で確定、「いいえ」で最初から。`;
+                    }
+                    break;
+                default:
+                    reply = `構成確定済みです。生成ボタンを押してください。`;
+            }
+            
+            updateConfigDisplay();
+            saveCurrentSession();
+            return reply;
+        }
+        
+        function bulkGenerate() {
+            if (!currentConfig.confirmed) {
+                alert('5回の対話を完了し、「はい」で確定させてください。');
+                return;
+            }
+            const code = generateCode(currentConfig.language, currentConfig.purpose, currentConfig.framework, currentConfig.dependencies);
+            updateCodePreview(code, currentConfig.language);
+            addMessage('ai', `✨ 一括生成完了！\n言語: ${currentConfig.language?.toUpperCase()}\nコードを右パネルで確認できます。`);
+        }
+        
+        // ==================== GitHubからのスキル学習 ====================
+        async function learnFromGitHub(url) {
+            const statusEl = document.getElementById('githubStatus');
+            if (statusEl) statusEl.textContent = '学習中...';
+            try {
+                let rawUrl = url.trim();
+                rawUrl = rawUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+                const res = await fetch(rawUrl);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const text = await res.text();
+                
+                // スキル定義をパース
+                let skillData = null;
+                try {
+                    const json = JSON.parse(text);
+                    if (json.id && json.name) skillData = json;
+                    else if (json.skill) skillData = json.skill;
+                } catch(e) {}
+                
+                if (skillData) {
+                    const newSkill = {
+                        id: skillData.id,
+                        name: skillData.name,
+                        enabled: true,
+                        builtin: false,
+                        desc: skillData.desc || '',
+                        triggers: skillData.triggers || []
+                    };
+                    if (!skills.find(s => s.id === newSkill.id)) {
+                        skills.push(newSkill);
+                        saveSkills();
+                        renderSkillList();
+                        renderSkillModal();
+                        if (statusEl) statusEl.textContent = `✅ 「${newSkill.name}」を追加しました`;
+                    } else {
+                        if (statusEl) statusEl.textContent = `⚠️ スキル「${newSkill.name}」は既に存在します`;
+                    }
+                } else {
+                    if (statusEl) statusEl.textContent = '❌ 有効なスキル定義が見つかりませんでした';
+                }
+            } catch(e) {
+                if (statusEl) statusEl.textContent = `❌ エラー: ${e.message}`;
+            }
+        }
+        
+        // ==================== データ出力 (パスワード保護) ====================
+        async function downloadProtectedData() {
+            const password = prompt("データを出力するにはパスワードを入力してください");
+            if (!password) return;
+            const hash = await sha256(password);
+            const correctHash = await sha256(REQUIRED_PASSWORD);
+            if (hash !== correctHash) {
+                alert("パスワードが間違っています。");
+                return;
+            }
+            const exportData = {
+                version: "V8",
+                exportedAt: new Date().toISOString(),
+                sessions: sessions,
+                skills: skills,
+                activeSessionId: activeSessionId
+            };
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `codecore_data_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            alert("データを出力しました");
+        }
+        
+        function exportSkills() {
+            const exportData = {
+                version: "V8",
+                exportedAt: new Date().toISOString(),
+                skills: skills.filter(s => !s.builtin)
+            };
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `codecore_skills_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+        
+        function copyCode() {
+            if (generatedCode) {
+                navigator.clipboard.writeText(generatedCode);
+                alert("コードをコピーしました");
+            } else {
+                alert("コードがありません");
+            }
+        }
+        
+        function downloadCode() {
+            if (generatedCode) {
+                const blob = new Blob([generatedCode], { type: "text/plain" });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `code.${currentLanguage === 'html' ? 'html' : currentLanguage === 'python' ? 'py' : 'txt'}`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            } else {
+                alert("コードがありません");
+            }
+        }
+        
+        // ==================== 送信処理 ====================
+        async function handleSend() {
+            const input = document.getElementById('userInput');
+            const text = input.value.trim();
+            if (!text) return;
+            addMessage('user', text);
+            input.value = '';
+            const reply = await aiResponse(text);
+            addMessage('ai', reply);
+        }
+        
+        // ==================== クイックリプライ ====================
+        function updateQuickReplies() {
+            const container = document.getElementById('quickReplies');
+            if (!container) return;
+            const replies = ['HTMLでボタン', 'Pythonで計算', 'しりとりしよう', '二次方程式', '源氏物語'];
+            container.innerHTML = replies.map(r => `<span class="qr-btn" onclick="document.getElementById('userInput').value='${r}'; handleSend();">${r}</span>`).join('');
+        }
+        
+        // ==================== 初期化 ====================
+        function init() {
+            loadSessions();
+            loadSkills();
+            renderSessionList();
+            updateConfigDisplay();
+            updateQuickReplies();
+            
+            // イベント設定
+            document.getElementById('sendBtn').onclick = handleSend;
+            document.getElementById('generateBtn').onclick = bulkGenerate;
+            document.getElementById('newSessionBtn').onclick = newSession;
+            document.getElementById('downloadDataBtn').onclick = downloadProtectedData;
+            document.getElementById('exportSkillsBtn').onclick = exportSkills;
+            document.getElementById('copyCodeBtn').onclick = copyCode;
+            document.getElementById('downloadCodeBtn').onclick = downloadCode;
+            document.getElementById('learnFromGitHub').onclick = () => {
+                const url = document.getElementById('githubUrl').value;
+                if (url) learnFromGitHub(url);
+            };
+            document.getElementById('openSkillModal').onclick = () => {
+                renderSkillModal();
+                document.getElementById('skillModal').style.display = 'flex';
+            };
+            document.getElementById('closeSkillModal').onclick = () => {
+                document.getElementById('skillModal').style.display = 'none';
+            };
+            document.getElementById('modalLearnBtn').onclick = () => {
+                const url = document.getElementById('modalGithubUrl').value;
+                if (url) learnFromGitHub(url);
+            };
+            document.getElementById('userInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                }
+            });
+            
+            window.switchSession = switchSession;
+            window.toggleSkill = toggleSkill;
+            window.deleteSkill = deleteSkill;
+            window.handleSend = handleSend;
+        }
+        
+        init();
+    })();
+</script>
+</body>
+</html>
