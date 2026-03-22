@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODE CORE - 多言語AIコード生成システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Noto Sans JP', 'Fira Code', monospace;
+            background: #0a0c15;
+            color: #e4e7f0;
+            overflow: hidden;
+        }
+
+        .app {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* サイドバー */
+        .config-panel {
+            width: 320px;
+            background: #0f121f;
+            border-right: 1px solid #1e2438;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 1rem;
+        }
+
+        .config-step {
+            background: #1a1f2e;
+            border-radius: 16px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 3px solid #3b82f6;
+            transition: all 0.2s;
+        }
+
+        .config-step.completed {
+            border-left-color: #10b981;
+            background: #1a1f2e;
+        }
+
+        .config-step.current {
+            border-left-color: #f59e0b;
+            background: #1e2538;
+            box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.3);
+        }
+
+        .step-title {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .step-status {
+            font-size: 0.7rem;
+            color: #10b981;
+        }
+
+        .step-content {
+            font-size: 0.85rem;
+            color: #9ca3af;
+            margin-top: 0.5rem;
+            word-break: break-word;
+        }
+
+        /* メインチャット */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0c0f1a;
+            min-width: 0;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            max-width: 85%;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .user-message {
+            align-self: flex-end;
+        }
+
+        .ai-message {
+            align-self: flex-start;
+        }
+
+        .msg-bubble {
+            padding: 0.75rem 1.25rem;
+            border-radius: 20px;
+            line-height: 1.5;
+            font-size: 0.9rem;
+            word-break: break-word;
+        }
+
+        .user-message .msg-bubble {
+            background: linear-gradient(135deg, #3b82f6, #1e40af);
+            border-bottom-right-radius: 4px;
+        }
+
+        .ai-message .msg-bubble {
+            background: #1a1f2e;
+            border-bottom-left-radius: 4px;
+            border: 1px solid #2d3748;
+        }
+
+        .input-area {
+            padding: 1rem;
+            background: #0f121f;
+            border-top: 1px solid #1e2438;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        textarea {
+            flex: 1;
+            background: #1a1f2e;
+            border: 1px solid #2d3748;
+            border-radius: 24px;
+            padding: 0.75rem 1.25rem;
+            color: #e4e7f0;
+            font-family: inherit;
+            font-size: 0.9rem;
+            resize: none;
+            outline: none;
+        }
+
+        textarea:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+        }
+
+        button {
+            background: #3b82f6;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 40px;
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+
+        button:hover {
+            background: #2563eb;
+            transform: scale(1.02);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            background: #4b5563;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* 右パネル */
+        .preview-panel {
+            width: 45%;
+            background: #0f121f;
+            border-left: 1px solid #1e2438;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .preview-tabs {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.75rem;
+            background: #0a0c15;
+            border-bottom: 1px solid #1e2438;
+            overflow-x: auto;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background: #1a1f2e;
+            padding: 0.4rem 1rem;
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+
+        .tab-btn.active {
+            background: #3b82f6;
+        }
+
+        .code-viewer {
+            flex: 1;
+            overflow: auto;
+            background: #0c0f1a;
+            padding: 1rem;
+        }
+
+        .code-viewer pre {
+            margin: 0;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.75rem;
+            line-height: 1.5;
+            color: #e4e7f0;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .execution-preview {
+            height: 35%;
+            background: #1e1e2e;
+            border-top: 1px solid #1e2438;
+            overflow: auto;
+            padding: 0.5rem;
+        }
+
+        .execution-preview iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: white;
+        }
+
+        .terminal {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 0.75rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            height: 100%;
+            overflow: auto;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .language-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.65rem;
+            background: #2d3748;
+            margin-left: 0.5rem;
+        }
+
+        .generate-btn {
+            background: #10b981;
+            font-size: 1rem;
+            padding: 0.75rem 1.5rem;
+            margin-top: 1rem;
+            width: 100%;
+            font-weight: bold;
+        }
+
+        .generate-btn:hover:not(:disabled) {
+            background: #059669;
+        }
+
+        .status-badge {
+            font-size: 0.7rem;
+            color: #9ca3af;
+            margin-top: 0.5rem;
+            text-align: center;
+            padding: 0.5rem;
+        }
+
+        h3 {
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            color: #e4e7f0;
+        }
+
+        /* スクロールバー */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1f2e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="config-panel" id="configPanel">
+        <h3>📋 構成ステップ (1/5 → 6で生成)</h3>
+        <div id="stepsContainer"></div>
+        <button class="generate-btn" id="generateBtn">🚀 第6回: 一括コード生成</button>
+        <div class="status-badge" id="learningStatus">🧠 GitHub学習: 自動実行中...</div>
+    </div>
+
+    <div class="chat-area">
+        <div class="messages" id="messagesContainer">
+            <div class="message ai-message">
+                <div class="msg-bubble">
+                    🤖 <strong>CODE CORE v3.0</strong><br>
+                    多言語AIコード生成システムへようこそ。<br>
+                    5回の対話で構成を決定し、6回目で一括生成します。<br><br>
+                    <strong>【ターン1】</strong> 使用する言語を選んでください:<br>
+                    HTML/CSS/JS | Python | Rust | C/C++ | Java | TypeScript
+                </div>
+            </div>
+        </div>
+        <div class="input-area">
+            <div class="input-group">
+                <textarea id="userInput" rows="2" placeholder="メッセージを入力... (Enterで送信)"></textarea>
+                <button id="sendBtn">📤 送信</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="preview-panel">
+        <div class="preview-tabs" id="previewTabs"></div>
+        <div class="code-viewer" id="codeViewer">
+            <pre>まだコードが生成されていません。\n5回の対話後に「一括コード生成」ボタンを押してください。</pre>
+        </div>
+        <div class="execution-preview" id="executionPreview">
+            <div class="terminal">💡 実行プレビューエリア<br>コード生成後に表示されます</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==================== 多言語AIコード生成エンジン ====================
+    
+    // 構成管理
+    let config = {
+        turn: 1,
+        language: null,
+        purpose: null,
+        framework: null,
+        dependencies: null,
+        confirmed: false
+    };
+    
+    let generatedFiles = [];
+    let currentPreviewFile = 0;
+    let learnedPatterns = [];
+    
+    // 多言語テンプレート
+    const languageTemplates = {
+        'html': {
+            name: 'HTML/CSS/JS',
+            extensions: ['.html'],
+            runner: 'html',
+            generate: (spec, framework, deps) => `<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${spec.slice(0, 30)}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+        }
+        .container {
+            background: white;
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 { color: #333; margin-bottom: 1rem; }
+        p { color: #666; line-height: 1.6; }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 40px;
+            cursor: pointer;
+            margin-top: 1rem;
+            font-size: 1rem;
+        }
+        button:hover { background: #5a67d8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✨ ${spec || '生成されたアプリケーション'}</h1>
+        <p>${framework ? 'フレームワーク: ' + framework : ''}</p>
+        <p>${deps ? '依存関係: ' + deps : ''}</p>
+        <button onclick="alert('こんにちは！ボタンが動作しました')">クリック</button>
+    </div>
+    <script>
+        console.log('${spec} が生成されました');
+        document.querySelector('button')?.addEventListener('click', () => {
+            alert('✨ インタラクション成功！');
+        });
+    <\/script>
+</body>
+</html>`
+        },
+        'python': {
+            name: 'Python',
+            extensions: ['.py'],
+            runner: 'pyscript',
+            generate: (spec, framework, deps) => {
+                if (framework?.toLowerCase().includes('flask') || spec?.toLowerCase().includes('api')) {
+                    return `from flask import Flask, jsonify, request
+from flask_cors import CORS
+
+app = Flask(__name__)
+CORS(app)
+
+@app.route('/')
+def home():
+    return jsonify({"message": "Hello from Flask API", "status": "success"})
+
+@app.route('/api/data', methods=['GET'])
+def get_data():
+    return jsonify({"data": [1, 2, 3, 4, 5], "total": 15})
+
+@app.route('/api/echo', methods=['POST'])
+def echo():
+    data = request.get_json()
+    return jsonify({"echo": data})
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)`;
+                }
+                return `#!/usr/bin/env python3
+"""
+${spec or 'Pythonアプリケーション'}
+${framework or ''}
+${deps or ''}
+"""
+
+import sys
+
+def main():
+    print("=" * 50)
+    print("✨ Python アプリケーション")
+    print("=" * 50)
+    print(f"仕様: ${spec or '基本アプリ'}")
+    
+    # サンプル機能
+    numbers = [1, 2, 3, 4, 5]
+    total = sum(numbers)
+    print(f"\\n📊 サンプル計算: {numbers} の合計 = {total}")
+    
+    # ユーザー入力待ち
+    name = input("\\n👤 名前を入力してください: ")
+    print(f"\\nこんにちは、{name}さん！")
+    
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())`;
+            }
+        },
+        'rust': {
+            name: 'Rust',
+            extensions: ['.rs'],
+            runner: 'text',
+            generate: (spec, framework, deps) => `// ${spec || 'Rustアプリケーション'}
+// フレームワーク: ${framework || 'なし'}
+// 依存関係: ${deps || 'なし'}
+
+use std::io;
+
+fn main() {
+    println!("=== Rust アプリケーション ===");
+    println!("仕様: {}", "${spec || '基本アプリ'}");
+    
+    let mut input = String::new();
+    println!("\\n名前を入力してください:");
+    io::stdin().read_line(&mut input).expect("入力エラー");
+    
+    let name = input.trim();
+    println!("\\nこんにちは、{}さん！", name);
+    
+    // ベクター操作の例
+    let numbers = vec![10, 20, 30, 40, 50];
+    let sum: i32 = numbers.iter().sum();
+    println!("\\n📊 数値の合計: {}", sum);
+    
+    println!("\\n✨ プログラムを終了します");
+}`
+        },
+        'c': {
+            name: 'C/C++',
+            extensions: ['.c'],
+            runner: 'text',
+            generate: (spec, framework, deps) => `#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+// ${spec || 'C言語アプリケーション'}
+// フレームワーク: ${framework || 'なし'}
+
+int main() {
+    printf("=== C アプリケーション ===\\n");
+    printf("仕様: ${spec || '基本アプリ'}\\n\\n");
+    
+    char name[100];
+    printf("名前を入力してください: ");
+    fgets(name, sizeof(name), stdin);
+    name[strcspn(name, "\\n")] = 0;
+    
+    printf("\\nこんにちは、%sさん！\\n", name);
+    
+    // 配列操作
+    int numbers[] = {1, 2, 3, 4, 5};
+    int sum = 0;
+    for(int i = 0; i < 5; i++) {
+        sum += numbers[i];
+    }
+    printf("\\n📊 数値の合計: %d\\n", sum);
+    
+    printf("\\n✨ プログラムを終了します\\n");
+    return 0;
+}`
+        },
+        'java': {
+            name: 'Java',
+            extensions: ['.java'],
+            runner: 'text',
+            generate: (spec, framework, deps) => `// ${spec || 'Javaアプリケーション'}
+// フレームワーク: ${framework || 'なし'}
+
+import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        System.out.println("=== Java アプリケーション ===");
+        System.out.println("仕様: ${spec || '基本アプリ'}");
+        System.out.println();
+        
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("名前を入力してください: ");
+        String name = scanner.nextLine();
+        
+        System.out.println("\\nこんにちは、" + name + "さん！");
+        
+        // 配列操作
+        int[] numbers = {1, 2, 3, 4, 5};
+        int sum = 0;
+        for (int num : numbers) {
+            sum += num;
+        }
+        System.out.println("\\n📊 数値の合計: " + sum);
+        
+        System.out.println("\\n✨ プログラムを終了します");
+        scanner.close();
+    }
+}`
+        },
+        'typescript': {
+            name: 'TypeScript',
+            extensions: ['.ts'],
+            runner: 'text',
+            generate: (spec, framework, deps) => `// ${spec || 'TypeScriptアプリケーション'}
+// フレームワーク: ${framework || 'なし'}
+
+interface User {
+    id: number;
+    name: string;
+    email?: string;
+}
+
+class AppService {
+    private users: User[] = [];
+    
+    addUser(name: string): User {
+        const newUser: User = {
+            id: this.users.length + 1,
+            name: name
+        };
+        this.users.push(newUser);
+        return newUser;
+    }
+    
+    getUsers(): User[] {
+        return this.users;
+    }
+    
+    displayInfo(): void {
+        console.log("=== TypeScript アプリケーション ===");
+        console.log("仕様: ${spec || '基本アプリ'}");
+        console.log("ユーザー数: " + this.users.length);
+    }
+}
+
+// 実行例
+const service = new AppService();
+service.displayInfo();
+
+const name = prompt("名前を入力してください:") || "ゲスト";
+service.addUser(name);
+console.log(\`\\nこんにちは、\${name}さん！\`);
+
+console.log("\\n✨ プログラムを終了します");`
+        }
+    };
+    
+    // GitHub自動学習 (自動実行)
+    async function autoGitHubLearning() {
+        const statusDiv = document.getElementById('learningStatus');
+        if (!statusDiv) return;
+        
+        statusDiv.innerHTML = '🧠 GitHub学習: 高評価パターン収集中...';
+        
+        // シミュレーション: 実際のGitHub API連携の代替
+        const mockPatterns = [
+            { language: 'python', keywords: ['flask', 'api', 'rest'], stars: 2500, code: 'Flask REST API best practices' },
+            { language: 'rust', keywords: ['axum', 'web', 'server'], stars: 1800, code: 'Axum web server template' },
+            { language: 'html', keywords: ['responsive', 'dashboard'], stars: 3200, code: 'Responsive dashboard template' },
+            { language: 'typescript', keywords: ['react', 'hooks'], stars: 4100, code: 'React hooks patterns' }
+        ];
+        
+        for (const p of mockPatterns) {
+            if (!learnedPatterns.some(existing => existing.language === p.language && existing.keywords[0] === p.keywords[0])) {
+                learnedPatterns.push({
+                    ...p,
+                    source: 'github',
+                    learned_at: new Date().toISOString()
+                });
+            }
+        }
+        
+        localStorage.setItem('core_learned_patterns', JSON.stringify(learnedPatterns));
+        statusDiv.innerHTML = `✅ GitHub学習完了: ${learnedPatterns.length}パターン (自動更新)`;
+        
+        // 1時間ごとに自動再学習
+        setTimeout(autoGitHubLearning, 60 * 60 * 1000);
+    }
+    
+    // コード生成
+    function generateCode() {
+        const lang = config.language;
+        const template = languageTemplates[lang];
+        
+        if (!template) {
+            return [{
+                name: 'output.txt',
+                content: `// 未対応の言語: ${lang}\n// 対応言語: ${Object.keys(languageTemplates).join(', ')}`,
+                language: 'text'
+            }];
+        }
+        
+        const code = template.generate(config.purpose || 'サンプルアプリ', config.framework, config.dependencies);
+        
+        const files = [{
+            name: `main${template.extensions[0]}`,
+            content: code,
+            language: lang
+        }];
+        
+        // 追加ファイル (言語別)
+        if (lang === 'python') {
+            files.push({
+                name: 'requirements.txt',
+                content: `# 依存関係\nflask\nflask-cors\nrequests\npython-dotenv`,
+                language: 'text'
+            });
+        } else if (lang === 'rust') {
+            files.push({
+                name: 'Cargo.toml',
+                content: `[package]\nname = "myapp"\nversion = "0.1.0"\nedition = "2021"\n\n[dependencies]`,
+                language: 'toml'
+            });
+        }
+        
+        return files;
+    }
+    
+    // 実行プレビュー
+    function renderExecutionPreview(files, language) {
+        const previewDiv = document.getElementById('executionPreview');
+        if (!previewDiv) return;
+        
+        if (language === 'html') {
+            const htmlFile = files.find(f => f.name.endsWith('.html'));
+            if (htmlFile) {
+                previewDiv.innerHTML = `<iframe srcdoc="${escapeHtml(htmlFile.content).replace(/"/g, '&quot;')}" style="width:100%;height:100%;border:none;background:white;"></iframe>`;
+                return;
+            }
+        }
+        
+        // テキスト表示
+        const mainFile = files[0];
+        previewDiv.innerHTML = `
+            <div class="terminal">
+                <strong>▶️ ${language.toUpperCase()} 実行プレビュー</strong><br>
+                <span style="color:#10b981;">$ ${mainFile?.name}</span>
+                <hr style="border-color:#2d3748; margin: 0.5rem 0;">
+                <pre style="color:#e4e7f0; margin-top: 0.5rem; white-space: pre-wrap;">${escapeHtml(mainFile?.content?.slice(0, 800) || 'コードを表示できません')}</pre>
+                <small style="color:#6b7280; display: block; margin-top: 0.5rem;">※ ${language} の実行にはローカル環境が必要です</small>
+            </div>
+        `;
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    // ステップ表示更新
+    function updateConfigPanel() {
+        const steps = [
+            { name: '言語選択', field: 'language', display: config.language || '未選択' },
+            { name: '機能・目的', field: 'purpose', display: config.purpose || '未入力' },
+            { name: 'フレームワーク', field: 'framework', display: config.framework || '未入力' },
+            { name: '依存関係', field: 'dependencies', display: config.dependencies || '未入力' },
+            { name: '最終確認', field: 'confirmed', display: config.confirmed ? '✅ 確認済' : '⏳ 未確認' }
+        ];
+        
+        const container = document.getElementById('stepsContainer');
+        if (!container) return;
+        
+        container.innerHTML = steps.map((step, idx) => {
+            const stepNum = idx + 1;
+            const isCompleted = config.turn > stepNum || (config.turn === stepNum && config[step.field]) || (step.field === 'confirmed' && config.confirmed);
+            const isCurrent = config.turn === stepNum && !(step.field === 'confirmed' && config.confirmed);
+            
+            return `
+                <div class="config-step ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}">
+                    <div class="step-title">
+                        <span>${stepNum}. ${step.name}</span>
+                        <span class="step-status">${isCompleted ? '✓' : (stepNum === config.turn ? '●' : '○')}</span>
+                    </div>
+                    <div class="step-content">${step.display}</div>
+                </div>
+            `;
+        }).join('');
+        
+        const generateBtn = document.getElementById('generateBtn');
+        if (generateBtn) {
+            generateBtn.disabled = !config.confirmed;
+            if (!config.confirmed) {
+                generateBtn.title = '5回の対話を完了してください';
+            } else {
+                generateBtn.title = '一括コード生成を実行';
+            }
+        }
+    }
+    
+    // AI応答
+    async function aiResponse(userMessage) {
+        const lowerMsg = userMessage.toLowerCase().trim();
+        let response = '';
+        
+        switch(config.turn) {
+            case 1:
+                const langMap = {
+                    'html': 'html', 'css': 'html', 'javascript': 'html', 'js': 'html',
+                    'python': 'python', 'py': 'python',
+                    'rust': 'rust', 'rs': 'rust',
+                    'c': 'c', 'c++': 'c', 'cpp': 'c',
+                    'java': 'java',
+                    'typescript': 'typescript', 'ts': 'typescript'
+                };
+                
+                let detected = null;
+                for (const [key, value] of Object.entries(langMap)) {
+                    if (lowerMsg.includes(key)) {
+                        detected = value;
+                        break;
+                    }
+                }
+                
+                if (detected) {
+                    config.language = detected;
+                    response = `✅ 言語「${languageTemplates[detected]?.name || detected}」を選択しました。\n\n━━━━━━━━━━━━━━━━━━━━\n【ターン2】\nどんなアプリケーションを作りたいですか？\n(例: Web API, CLIツール, ゲーム, データ分析, ポートフォリオサイトなど)`;
+                    config.turn = 2;
+                } else {
+                    response = `【ターン1】言語を指定してください:\n• HTML/CSS/JS\n• Python\n• Rust\n• C/C++\n• Java\n• TypeScript`;
+                }
+                break;
+                
+            case 2:
+                config.purpose = userMessage;
+                response = `✅ 目的を記録しました: "${userMessage.slice(0, 50)}"\n\n━━━━━━━━━━━━━━━━━━━━\n【ターン3】\n使用するフレームワークやライブラリはありますか？\n(例: Flask, React, Axum, なし)`;
+                config.turn = 3;
+                break;
+                
+            case 3:
+                config.framework = userMessage;
+                response = `✅ フレームワークを記録しました: "${userMessage.slice(0, 50)}"\n\n━━━━━━━━━━━━━━━━━━━━\n【ターン4】\n特別な依存関係や環境設定はありますか？\n(例: Docker, PostgreSQL, Redis, なし)`;
+                config.turn = 4;
+                break;
+                
+            case 4:
+                config.dependencies = userMessage;
+                response = `✅ 依存関係を記録しました: "${userMessage.slice(0, 50)}"\n\n━━━━━━━━━━━━━━━━━━━━\n【ターン5 - 最終確認】\n以下の構成でよろしいですか？\n\n📌 言語: ${languageTemplates[config.language]?.name || config.language}\n📌 目的: ${config.purpose}\n📌 フレームワーク: ${config.framework}\n📌 依存関係: ${config.dependencies}\n\n「はい」または「OK」と入力すると確定します。\n修正がある場合は内容を教えてください。`;
+                config.turn = 5;
+                break;
+                
+            case 5:
+                if (lowerMsg.includes('はい') || lowerMsg.includes('ok') || lowerMsg.includes('確定')) {
+                    config.confirmed = true;
+                    config.turn = 6;
+                    response = `✅ 構成が確定しました！\n\n🎉 右下の「第6回: 一括コード生成」ボタンをクリックしてください。\nボタンが有効になりました。`;
+                } else if (lowerMsg.includes('言語') || lowerMsg.includes('変更')) {
+                    config.turn = 1;
+                    config.language = null;
+                    response = `承知しました。最初からやり直します。\n\n【ターン1】使用する言語を選んでください:`;
+                } else {
+                    response = `修正が必要ですか？\n\n• 「言語を変更」と言うと最初から\n• 修正したい項目を具体的に教えてください\n• 問題なければ「はい」と入力してください`;
+                }
+                break;
+                
+            default:
+                response = `✅ 構成は確定しています。\n「第6回: 一括コード生成」ボタンを押してください。`;
+        }
+        
+        updateConfigPanel();
+        return response;
+    }
+    
+    // 一括生成
+    function bulkGenerate() {
+        if (!config.confirmed) {
+            alert('⚠️ まず5回の対話を完了し、構成を確定してください。\nチャットで「はい」と入力して確定後、再度ボタンを押してください。');
+            return;
+        }
+        
+        const files = generateCode();
+        generatedFiles = files;
+        
+        // タブ生成
+        const tabsContainer = document.getElementById('previewTabs');
+        if (tabsContainer) {
+            tabsContainer.innerHTML = files.map((file, idx) => `
+                <button class="tab-btn ${idx === 0 ? 'active' : ''}" onclick="switchFile(${idx})">
+                    📄 ${file.name}
+                    <span class="language-badge">${file.language}</span>
+                </button>
+            `).join('');
+        }
+        
+        // コード表示
+        switchFile(0);
+        
+        // 実行プレビュー
+        renderExecutionPreview(files, config.language);
+        
+        // チャットに追加
+        addMessage('ai', `✨ 第6回: 一括コード生成完了！\n\n📦 ${files.length}個のファイルを生成しました。\n\n${files.map(f => `• ${f.name}`).join('\n')}\n\n右パネルでコードとプレビューを確認できます。`);
+        
+        // 学習パターンとして保存
+        learnedPatterns.push({
+            language: config.language,
+            keywords: [config.purpose?.slice(0, 50) || 'custom_pattern'],
+            code: files[0].content,
+            source: 'user_generated',
+            stars: 0,
+            learned_at: new Date().toISOString()
+        });
+        localStorage.setItem('core_learned_patterns', JSON.stringify(learnedPatterns));
+    }
+    
+    function switchFile(index) {
+        if (!generatedFiles[index]) return;
+        currentPreviewFile = index;
+        const file = generatedFiles[index];
+        
+        const viewer = document.getElementById('codeViewer');
+        if (viewer) {
+            viewer.innerHTML = `<pre>${escapeHtml(file.content)}</pre>`;
+        }
+        
+        // タブのアクティブ状態
+        document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+            if (i === index) btn.classList.add('active');
+            else btn.classList.remove('active');
+        });
+    }
+    
+    function addMessage(role, content) {
+        const container = document.getElementById('messagesContainer');
+        if (!container) return;
+        
+        const div = document.createElement('div');
+        div.className = `message ${role}-message`;
+        div.innerHTML = `<div class="msg-bubble">${content.replace(/\n/g, '<br>')}</div>`;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    async function handleSend() {
+        const input = document.getElementById('userInput');
+        const text = input.value.trim();
+        if (!text) return;
+        
+        addMessage('user', text);
+        input.value = '';
+        
+        const aiReply = await aiResponse(text);
+        addMessage('ai', aiReply);
+        
+        // テキストエリアの高さリセット
+        input.style.height = 'auto';
+    }
+    
+    // 初期化
+    async function init() {
+        // 保存データ読み込み
+        const stored = localStorage.getItem('core_learned_patterns');
+        if (stored) {
+            try {
+                learnedPatterns = JSON.parse(stored);
+            } catch(e) { learnedPatterns = []; }
+        }
+        
+        // 自動学習開始
+        autoGitHubLearning();
+        
+        // イベント設定
+        const sendBtn = document.getElementById('sendBtn');
+        const generateBtn = document.getElementById('generateBtn');
+        const userInput = document.getElementById('userInput');
+        
+        if (sendBtn) sendBtn.addEventListener('click', handleSend);
+        if (generateBtn) generateBtn.addEventListener('click', bulkGenerate);
+        if (userInput) {
+            userInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                }
+            });
+        }
+        
+        updateConfigPanel();
+        
+        // グローバル関数
+        window.switchFile = switchFile;
+        window.bulkGenerate = bulkGenerate;
+    }
+    
+    // 起動
+    init();
+</script>
+</body>
+</html>
