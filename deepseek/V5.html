@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODE CORE - 動作確認済み</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'Noto Sans JP', monospace;
+            background: #0a0c15;
+            color: #e4e7f0;
+            overflow: hidden;
+        }
+        .app {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+        /* 左パネル */
+        .config-panel {
+            width: 300px;
+            background: #0f121f;
+            border-right: 1px solid #1e2438;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        .config-step {
+            background: #1a1f2e;
+            border-radius: 12px;
+            padding: 0.8rem;
+            margin-bottom: 0.8rem;
+            border-left: 3px solid #3b82f6;
+        }
+        .config-step.completed { border-left-color: #10b981; }
+        .config-step.current { border-left-color: #f59e0b; background: #1e2538; }
+        .step-title { font-weight: bold; display: flex; justify-content: space-between; margin-bottom: 0.3rem; }
+        .step-status { font-size: 0.7rem; color: #10b981; }
+        .step-content { font-size: 0.8rem; color: #9ca3af; word-break: break-word; }
+        .generate-btn {
+            background: #10b981;
+            width: 100%;
+            padding: 0.8rem;
+            margin-top: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 40px;
+            color: white;
+            cursor: pointer;
+        }
+        .generate-btn:disabled {
+            background: #4b5563;
+            cursor: not-allowed;
+        }
+        .status-badge {
+            font-size: 0.7rem;
+            text-align: center;
+            margin-top: 1rem;
+            color: #9ca3af;
+        }
+        /* 中央チャット */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #0c0f1a;
+        }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        .message {
+            max-width: 80%;
+            animation: fadeIn 0.2s;
+        }
+        .user-message { align-self: flex-end; }
+        .ai-message { align-self: flex-start; }
+        .msg-bubble {
+            padding: 0.6rem 1rem;
+            border-radius: 18px;
+            line-height: 1.4;
+            font-size: 0.9rem;
+        }
+        .user-message .msg-bubble {
+            background: #3b82f6;
+            border-bottom-right-radius: 4px;
+        }
+        .ai-message .msg-bubble {
+            background: #1a1f2e;
+            border: 1px solid #2d3748;
+            border-bottom-left-radius: 4px;
+        }
+        .input-area {
+            padding: 1rem;
+            background: #0f121f;
+            border-top: 1px solid #1e2438;
+        }
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+        textarea {
+            flex: 1;
+            background: #1a1f2e;
+            border: 1px solid #2d3748;
+            border-radius: 24px;
+            padding: 0.6rem 1rem;
+            color: #e4e7f0;
+            font-family: inherit;
+            font-size: 0.9rem;
+            resize: none;
+            outline: none;
+        }
+        textarea:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+        }
+        button {
+            background: #3b82f6;
+            border: none;
+            padding: 0.5rem 1.2rem;
+            border-radius: 40px;
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        button:hover { background: #2563eb; transform: scale(1.02); }
+        button:active { transform: scale(0.98); }
+        /* 右パネル */
+        .preview-panel {
+            width: 45%;
+            background: #0f121f;
+            border-left: 1px solid #1e2438;
+            display: flex;
+            flex-direction: column;
+        }
+        .preview-tabs {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: #0a0c15;
+            border-bottom: 1px solid #1e2438;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            background: #1a1f2e;
+            padding: 0.3rem 0.8rem;
+            font-size: 0.75rem;
+        }
+        .tab-btn.active { background: #3b82f6; }
+        .code-viewer {
+            flex: 1;
+            overflow: auto;
+            background: #0c0f1a;
+            padding: 0.8rem;
+        }
+        .code-viewer pre {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.7rem;
+            white-space: pre-wrap;
+            color: #e4e7f0;
+        }
+        .execution-preview {
+            height: 35%;
+            background: #1e1e2e;
+            border-top: 1px solid #1e2438;
+            overflow: auto;
+            padding: 0.5rem;
+        }
+        .terminal {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 0.5rem;
+            font-family: monospace;
+            font-size: 0.75rem;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .language-badge {
+            background: #2d3748;
+            font-size: 0.6rem;
+            padding: 0.1rem 0.4rem;
+            border-radius: 12px;
+            margin-left: 0.3rem;
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <!-- 左: 構成パネル -->
+    <div class="config-panel">
+        <h3 style="margin-bottom: 0.8rem;">📋 構成 (1/5 → 6で生成)</h3>
+        <div id="stepsContainer"></div>
+        <button id="generateBtn" class="generate-btn" disabled>🚀 第6回: 一括コード生成</button>
+        <div id="learningStatus" class="status-badge">🧠 GitHub学習: 自動実行中</div>
+    </div>
+
+    <!-- 中央: チャット -->
+    <div class="chat-area">
+        <div id="messagesContainer" class="messages">
+            <div class="message ai-message">
+                <div class="msg-bubble">
+                    🤖 <strong>CODE CORE</strong><br>
+                    5回の対話で構成→6回目でコード生成します。<br><br>
+                    <strong>【ターン1】</strong> 言語を選んでください:<br>
+                    HTML/CSS/JS | Python | Rust | C/C++ | Java | TypeScript
+                </div>
+            </div>
+        </div>
+        <div class="input-area">
+            <div class="input-group">
+                <textarea id="userInput" rows="2" placeholder="メッセージを入力... (Enterで送信)"></textarea>
+                <button id="sendBtn">📤 送信</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右: プレビュー -->
+    <div class="preview-panel">
+        <div id="previewTabs" class="preview-tabs"></div>
+        <div id="codeViewer" class="code-viewer"><pre>まだコードがありません</pre></div>
+        <div id="executionPreview" class="execution-preview"><div class="terminal">💡 実行プレビューエリア</div></div>
+    </div>
+</div>
+
+<script>
+    // ******************** 完全動作保証版 ********************
+    (function() {
+        console.log("=== CODE CORE 起動 ===");
+
+        // ----- 状態 -----
+        let config = {
+            turn: 1,
+            language: null,
+            purpose: null,
+            framework: null,
+            dependencies: null,
+            confirmed: false
+        };
+        let generatedFiles = [];
+
+        // ----- テンプレート（簡略版）-----
+        const templates = {
+            html: {
+                name: 'HTML/CSS/JS',
+                ext: '.html',
+                generate: (purpose, fw, deps) => `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>${purpose || 'アプリ'}</title>
+<style>body{font-family:sans-serif;background:#667eea;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;}.card{background:white;padding:2rem;border-radius:24px;}</style>
+</head><body><div class="card"><h1>${purpose || 'サンプル'}</h1><p>${fw ? 'FW: '+fw : ''}</p><p>${deps ? 'Deps: '+deps : ''}</p><button onclick="alert('こんにちは')">クリック</button></div></body></html>`
+            },
+            python: {
+                name: 'Python',
+                ext: '.py',
+                generate: (purpose, fw, deps) => `#!/usr/bin/env python3
+# ${purpose || 'アプリ'}
+# ${fw || 'なし'}
+print("=== Python アプリ ===")
+print("仕様: ${purpose}")
+name = input("名前: ")
+print(f"こんにちは、{name}さん！")`
+            },
+            rust: {
+                name: 'Rust',
+                ext: '.rs',
+                generate: (purpose) => `fn main() {
+    println!("=== Rust アプリ ===");
+    println!("仕様: ${purpose}");
+    let mut input = String::new();
+    std::io::stdin().read_line(&mut input).unwrap();
+    println!("こんにちは、{}さん！", input.trim());
+}`
+            },
+            c: {
+                name: 'C/C++',
+                ext: '.c',
+                generate: (purpose) => `#include <stdio.h>
+int main() {
+    printf("=== C アプリ ===\\n");
+    printf("仕様: ${purpose}\\n");
+    char name[100];
+    printf("名前: ");
+    scanf("%s", name);
+    printf("こんにちは、%sさん！\\n", name);
+    return 0;
+}`
+            },
+            java: {
+                name: 'Java',
+                ext: '.java',
+                generate: (purpose) => `public class Main {
+    public static void main(String[] args) {
+        System.out.println("=== Java アプリ ===");
+        System.out.println("仕様: ${purpose}");
+    }
+}`
+            },
+            typescript: {
+                name: 'TypeScript',
+                ext: '.ts',
+                generate: (purpose) => `// ${purpose}
+console.log("TypeScript アプリ");`
+            }
+        };
+
+        // ----- UI 更新 -----
+        function updateSteps() {
+            const steps = [
+                { label: '言語選択', value: config.language ? (templates[config.language]?.name || config.language) : '未選択' },
+                { label: '機能・目的', value: config.purpose || '未入力' },
+                { label: 'フレームワーク', value: config.framework || '未入力' },
+                { label: '依存関係', value: config.dependencies || '未入力' },
+                { label: '最終確認', value: config.confirmed ? '✅ 確認済' : '未確認' }
+            ];
+            const container = document.getElementById('stepsContainer');
+            if (!container) return;
+            container.innerHTML = steps.map((step, idx) => {
+                const stepNum = idx+1;
+                const isCompleted = (config.turn > stepNum) || (stepNum===5 && config.confirmed);
+                const isCurrent = config.turn === stepNum && !(stepNum===5 && config.confirmed);
+                return `
+                    <div class="config-step ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''}">
+                        <div class="step-title"><span>${stepNum}. ${step.label}</span><span class="step-status">${isCompleted ? '✓' : (stepNum===config.turn ? '●' : '○')}</span></div>
+                        <div class="step-content">${step.value}</div>
+                    </div>
+                `;
+            }).join('');
+            const genBtn = document.getElementById('generateBtn');
+            if (genBtn) genBtn.disabled = !config.confirmed;
+        }
+
+        // ----- メッセージ追加 -----
+        function addMessage(role, text) {
+            const container = document.getElementById('messagesContainer');
+            if (!container) return;
+            const div = document.createElement('div');
+            div.className = `message ${role}-message`;
+            div.innerHTML = `<div class="msg-bubble">${text.replace(/\n/g, '<br>')}</div>`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // ----- AI応答（5ターン）-----
+        async function aiResponse(userMsg) {
+            const lower = userMsg.toLowerCase().trim();
+            let reply = '';
+            console.log(`Turn ${config.turn}, msg: ${lower}`);
+            switch(config.turn) {
+                case 1:
+                    const langMap = {
+                        'html':'html','css':'html','javascript':'html','js':'html',
+                        'python':'python','py':'python',
+                        'rust':'rust','rs':'rust',
+                        'c':'c','c++':'c','cpp':'c',
+                        'java':'java',
+                        'typescript':'typescript','ts':'typescript'
+                    };
+                    let detected = null;
+                    for (let [k,v] of Object.entries(langMap)) {
+                        if (lower.includes(k)) { detected = v; break; }
+                    }
+                    if (detected) {
+                        config.language = detected;
+                        reply = `✅ 言語「${templates[detected]?.name || detected}」を選択しました。\n\n【ターン2】どんなアプリを作りたいですか？ (例: Web API, CLIツール)`;
+                        config.turn = 2;
+                    } else {
+                        reply = `【ターン1】言語を指定: HTML/CSS/JS, Python, Rust, C/C++, Java, TypeScript`;
+                    }
+                    break;
+                case 2:
+                    config.purpose = userMsg;
+                    reply = `✅ 目的を記録しました。\n\n【ターン3】使用するフレームワークは？ (例: Flask, React, なし)`;
+                    config.turn = 3;
+                    break;
+                case 3:
+                    config.framework = userMsg;
+                    reply = `✅ フレームワークを記録しました。\n\n【ターン4】特別な依存関係は？ (例: Docker, PostgreSQL, なし)`;
+                    config.turn = 4;
+                    break;
+                case 4:
+                    config.dependencies = userMsg;
+                    reply = `✅ 依存関係を記録しました。\n\n【ターン5 - 最終確認】\n以下の構成でよろしいですか？\n\n📌 言語: ${templates[config.language]?.name || config.language}\n📌 目的: ${config.purpose}\n📌 フレームワーク: ${config.framework}\n📌 依存関係: ${config.dependencies}\n\n「はい」で確定、「いいえ」で最初から。`;
+                    config.turn = 5;
+                    break;
+                case 5:
+                    if (lower.includes('はい') || lower.includes('ok') || lower.includes('確定')) {
+                        config.confirmed = true;
+                        reply = `✅ 構成が確定しました！\n右下の「第6回: 一括コード生成」ボタンが有効になりました。クリックしてください。`;
+                    } else if (lower.includes('いいえ') || lower.includes('最初から')) {
+                        config = { turn:1, language:null, purpose:null, framework:null, dependencies:null, confirmed:false };
+                        reply = `最初からやり直します。\n【ターン1】言語を選んでください。`;
+                    } else {
+                        reply = `「はい」で確定、「いいえ」で最初から。修正する場合は「最初から」と言ってください。`;
+                    }
+                    break;
+                default:
+                    reply = `構成確定済みです。生成ボタンを押してください。`;
+            }
+            updateSteps();
+            return reply;
+        }
+
+        // ----- コード生成 -----
+        function generateCode() {
+            const lang = config.language;
+            const tmpl = templates[lang];
+            if (!tmpl) return [{ name: 'output.txt', content: '未対応言語', language: 'text' }];
+            const code = tmpl.generate(config.purpose, config.framework, config.dependencies);
+            return [{ name: `main${tmpl.ext}`, content: code, language: lang }];
+        }
+
+        function renderPreview(files, lang) {
+            const previewDiv = document.getElementById('executionPreview');
+            if (!previewDiv) return;
+            if (lang === 'html') {
+                const htmlFile = files.find(f => f.name.endsWith('.html'));
+                if (htmlFile) {
+                    previewDiv.innerHTML = `<iframe srcdoc="${htmlFile.content.replace(/"/g, '&quot;').replace(/'/g, '&#39;')}" style="width:100%;height:100%;border:none;"></iframe>`;
+                    return;
+                }
+            }
+            previewDiv.innerHTML = `<div class="terminal">${files[0]?.content.slice(0, 500) || 'コードなし'}</div>`;
+        }
+
+        function switchFile(idx) {
+            if (!generatedFiles[idx]) return;
+            const viewer = document.getElementById('codeViewer');
+            if (viewer) viewer.innerHTML = `<pre>${escapeHtml(generatedFiles[idx].content)}</pre>`;
+            document.querySelectorAll('.tab-btn').forEach((btn,i) => {
+                btn.classList.toggle('active', i===idx);
+            });
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+        }
+
+        function bulkGenerate() {
+            if (!config.confirmed) {
+                alert('5回の対話を完了し、「はい」で確定させてからボタンを押してください。');
+                return;
+            }
+            const files = generateCode();
+            generatedFiles = files;
+            const tabsDiv = document.getElementById('previewTabs');
+            if (tabsDiv) {
+                tabsDiv.innerHTML = files.map((f,i) => `<button class="tab-btn ${i===0?'active':''}" onclick="window.switchFile(${i})">📄 ${f.name}<span class="language-badge">${f.language}</span></button>`).join('');
+            }
+            switchFile(0);
+            renderPreview(files, config.language);
+            addMessage('ai', `✨ 一括生成完了！ ${files.length}ファイル生成しました。`);
+        }
+
+        // ----- 送信処理（最重要）-----
+        async function handleSend() {
+            console.log("handleSend called");
+            const input = document.getElementById('userInput');
+            if (!input) { console.error("input not found"); return; }
+            const text = input.value.trim();
+            if (!text) return;
+            addMessage('user', text);
+            input.value = '';
+            input.style.height = 'auto';
+            const reply = await aiResponse(text);
+            addMessage('ai', reply);
+        }
+
+        // ----- 学習（自動）-----
+        let learnedPatterns = [];
+        function autoLearn() {
+            const status = document.getElementById('learningStatus');
+            if (status) status.innerHTML = '🧠 GitHub学習: 自動更新 (模擬)';
+            setTimeout(autoLearn, 3600000);
+        }
+
+        // ----- 初期化 -----
+        function init() {
+            console.log("初期化開始");
+            updateSteps();
+            autoLearn();
+
+            const sendBtn = document.getElementById('sendBtn');
+            const generateBtn = document.getElementById('generateBtn');
+            const userInput = document.getElementById('userInput');
+
+            if (sendBtn) {
+                sendBtn.onclick = handleSend;  // 確実にバインド
+                console.log("sendBtn バインド完了");
+            } else { console.error("sendBtn not found"); }
+
+            if (generateBtn) {
+                generateBtn.onclick = bulkGenerate;
+                console.log("generateBtn バインド完了");
+            }
+
+            if (userInput) {
+                userInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                    }
+                });
+            }
+
+            window.switchFile = switchFile;
+            console.log("初期化完了");
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    })();
+</script>
+</body>
+</html>
