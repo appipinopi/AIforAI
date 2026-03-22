@@ -1,0 +1,3102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カイ AI v3.0</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,700;1,400&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ─── RESET & VARS ─── */
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#080b14;--s1:#0d1120;--s2:#111827;--s3:#1a2235;
+  --border:#1e2d45;--border2:#253550;
+  --blue:#00aaff;--green:#00ff88;--pink:#ff4d8d;--yellow:#ffd166;--orange:#ff6b35;
+  --text:#c9d8f0;--dim:#4a6080;--dim2:#6b8099;
+  --code:#080d18;
+  --r:10px;
+  --font-mono:'JetBrains Mono',monospace;
+  --font-sans:'Noto Sans JP',sans-serif;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font-sans);}
+
+/* scanlines */
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 4px);pointer-events:none;z-index:9999;}
+
+/* ─── LAYOUT ─── */
+#app{display:flex;flex-direction:column;height:100vh;}
+
+/* ─── HEADER ─── */
+header{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 18px;
+  background:rgba(8,11,20,.95);
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;position:relative;z-index:100;
+  backdrop-filter:blur(10px);
+}
+.logo-wrap{display:flex;align-items:center;gap:8px;}
+.logo{font-family:var(--font-mono);font-size:18px;font-weight:700;letter-spacing:3px;
+  background:linear-gradient(90deg,var(--blue),var(--green));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.logo-ver{font-family:var(--font-mono);font-size:9px;color:var(--dim);letter-spacing:1px;padding:2px 7px;border:1px solid var(--border);border-radius:20px;}
+.logo-status{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.header-right{display:flex;gap:6px;margin-left:auto;align-items:center;}
+.hbtn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;
+  color:var(--dim2);font-size:11px;font-family:var(--font-sans);cursor:pointer;
+  letter-spacing:.5px;transition:all .2s;}
+.hbtn:hover{border-color:var(--blue);color:var(--blue);}
+.hbtn.active{background:rgba(0,170,255,.1);border-color:var(--blue);color:var(--blue);}
+.mode-badge{
+  font-family:var(--font-mono);font-size:10px;padding:3px 10px;border-radius:20px;
+  letter-spacing:1px;border:1px solid;
+}
+.mode-badge.idle{color:var(--dim2);border-color:var(--border);}
+.mode-badge.gathering{color:var(--yellow);border-color:var(--yellow);background:rgba(255,209,102,.08);}
+.mode-badge.ready{color:var(--green);border-color:var(--green);background:rgba(0,255,136,.08);}
+
+/* ─── MAIN ─── */
+.main-wrap{display:flex;flex:1;overflow:hidden;}
+
+/* ─── SIDEBAR ─── */
+#sidebar{
+  width:250px;flex-shrink:0;
+  border-right:1px solid var(--border);
+  background:var(--s1);
+  display:flex;flex-direction:column;
+  transition:width .3s ease,opacity .3s;
+}
+#sidebar.collapsed{width:0;opacity:0;overflow:hidden;}
+.stab-bar{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
+.stab{flex:1;padding:9px 4px;border:none;background:none;
+  font-size:10px;font-family:var(--font-sans);letter-spacing:.5px;text-transform:uppercase;
+  color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
+.stab:hover{color:var(--text);}
+.stab.active{color:var(--blue);border-bottom-color:var(--blue);}
+.spanel{display:none;flex:1;overflow-y:auto;padding:10px;flex-direction:column;gap:6px;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.spanel.active{display:flex;}
+.spanel::-webkit-scrollbar{width:3px;}
+.spanel::-webkit-scrollbar-thumb{background:var(--border);}
+
+/* template items */
+.tmpl-card{
+  padding:9px 11px;border-radius:7px;
+  border:1px solid var(--border);background:var(--s2);
+  cursor:pointer;transition:all .2s;
+}
+.tmpl-card:hover{border-color:var(--blue);background:rgba(0,170,255,.06);}
+.tc-name{font-size:12px;font-weight:500;margin-bottom:3px;}
+.tc-lang{font-family:var(--font-mono);font-size:9px;color:var(--blue);letter-spacing:1px;}
+.tc-kw{font-size:10px;color:var(--dim);margin-top:2px;}
+
+/* memory items */
+.mem-card{padding:9px 11px;border-radius:7px;border:1px solid var(--border);background:var(--s2);position:relative;}
+.mc-name{font-size:12px;font-weight:500;color:var(--green);margin-bottom:2px;}
+.mc-kw{font-size:10px;color:var(--dim);}
+.mc-del{position:absolute;top:7px;right:8px;background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;transition:color .2s;}
+.mc-del:hover{color:var(--pink);}
+.mc-score{font-size:10px;color:var(--yellow);margin-top:4px;}
+
+/* api docs in sidebar */
+.api-section{margin-bottom:14px;}
+.api-title{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--dim2);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--border);}
+.api-code-block{
+  background:var(--code);border:1px solid var(--border);border-radius:6px;
+  padding:10px;font-family:var(--font-mono);font-size:10px;line-height:1.6;
+  color:#6fa3d8;overflow-x:auto;white-space:pre;
+  margin-bottom:8px;
+}
+.copy-api-btn{
+  width:100%;padding:6px;border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--dim2);font-size:11px;cursor:pointer;
+  font-family:var(--font-sans);transition:all .2s;
+}
+.copy-api-btn:hover{border-color:var(--blue);color:var(--blue);}
+.api-note{font-size:11px;color:var(--dim);line-height:1.7;}
+
+.empty-state{text-align:center;padding:24px 12px;color:var(--dim);font-size:12px;line-height:1.8;}
+
+/* ─── CHAT AREA ─── */
+.chat-container{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+#chat{
+  flex:1;overflow-y:auto;
+  padding:20px;
+  display:flex;flex-direction:column;gap:14px;
+  scrollbar-width:thin;scrollbar-color:var(--border) transparent;
+}
+#chat::-webkit-scrollbar{width:4px;}
+#chat::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* progress bar for gathering */
+#gather-progress{
+  flex-shrink:0;
+  background:var(--s1);
+  border-bottom:1px solid var(--border);
+  padding:8px 20px;
+  display:none;
+}
+#gather-progress.show{display:block;}
+.gp-inner{display:flex;align-items:center;gap:10px;}
+.gp-label{font-family:var(--font-mono);font-size:10px;color:var(--yellow);letter-spacing:1px;flex-shrink:0;}
+.gp-bar{flex:1;height:4px;background:var(--border);border-radius:99px;overflow:hidden;}
+.gp-fill{height:100%;background:linear-gradient(90deg,var(--blue),var(--green));border-radius:99px;transition:width .5s ease;}
+.gp-steps{display:flex;gap:6px;margin-top:6px;}
+.gp-step{
+  flex:1;height:3px;border-radius:99px;background:var(--border);
+  transition:background .3s;
+}
+.gp-step.done{background:var(--green);}
+.gp-step.active{background:var(--yellow);box-shadow:0 0 6px var(--yellow);}
+
+/* messages */
+.msg{display:flex;gap:10px;animation:fadeUp .3s ease forwards;opacity:0;max-width:100%;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.msg.user{flex-direction:row-reverse;align-self:flex-end;max-width:75%;}
+.msg.ai{align-self:flex-start;max-width:96%;}
+.ava{
+  width:28px;height:28px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-size:9px;font-weight:700;
+  flex-shrink:0;letter-spacing:.5px;
+}
+.msg.user .ava{background:var(--blue);color:#000;}
+.msg.ai .ava{background:linear-gradient(135deg,#0055cc,#00aa66);color:#fff;}
+.bubble{padding:11px 15px;border-radius:10px;font-size:13.5px;line-height:1.75;}
+.msg.user .bubble{background:rgba(0,170,255,.2);border:1px solid rgba(0,170,255,.3);color:var(--text);border-bottom-right-radius:3px;}
+.msg.ai .bubble{background:var(--s2);border:1px solid var(--border);border-bottom-left-radius:3px;}
+.bubble strong{color:var(--blue);}
+.bubble em{color:var(--green);font-style:normal;}
+.bubble .tag{display:inline-block;padding:1px 7px;border-radius:3px;font-family:var(--font-mono);font-size:11px;background:rgba(0,170,255,.1);color:var(--blue);border:1px solid rgba(0,170,255,.2);}
+
+/* code output */
+.code-out{margin-top:10px;border-radius:8px;overflow:hidden;border:1px solid var(--border);}
+.co-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 12px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--border);
+}
+.co-lang{font-family:var(--font-mono);font-size:10px;letter-spacing:1px;}
+.co-lang.html{color:#ff6b35;} .co-lang.python{color:#4b8bbe;} .co-lang.typescript{color:#3178c6;}
+.co-lang.rust{color:#f74c00;} .co-lang.c{color:#a8b9cc;} .co-lang.cpp{color:#00599c;}
+.co-lang.csharp{color:#9b4993;} .co-lang.java{color:#b07219;} .co-lang.pyscript{color:#ff8c42;}
+.co-lang.javascript{color:#f7df1e;}
+.co-actions{display:flex;gap:6px;}
+.co-btn{
+  padding:3px 10px;border-radius:4px;border:1px solid var(--border);
+  background:transparent;color:var(--dim2);font-size:11px;cursor:pointer;
+  font-family:var(--font-sans);transition:all .2s;
+}
+.co-btn:hover{border-color:var(--blue);color:var(--blue);}
+.co-btn.preview:hover{border-color:var(--green);color:var(--green);}
+.co-btn.dl:hover{border-color:var(--yellow);color:var(--yellow);}
+.code-pre{
+  background:var(--code);padding:14px;
+  font-family:var(--font-mono);font-size:11.5px;line-height:1.65;
+  color:#8babc8;overflow-x:auto;max-height:300px;overflow-y:auto;
+}
+.code-pre::-webkit-scrollbar{width:3px;height:3px;}
+.code-pre::-webkit-scrollbar-thumb{background:var(--border);}
+
+/* github refs */
+.gh-refs{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
+.gh-ref{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;
+  border-radius:7px;border:1px solid var(--border);background:var(--s3);
+  text-decoration:none;color:var(--text);cursor:pointer;transition:all .2s;
+}
+.gh-ref:hover{border-color:var(--green);}
+.gh-icon{font-size:16px;flex-shrink:0;}
+.gh-info{flex:1;min-width:0;}
+.gh-name{font-size:12px;font-weight:500;color:var(--green);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.gh-desc{font-size:11px;color:var(--dim2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;}
+.gh-stars{font-family:var(--font-mono);font-size:10px;color:var(--yellow);flex-shrink:0;}
+
+/* feedback */
+.fb-row{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:8px;border-top:1px solid var(--border);}
+.fb-label{font-size:11px;color:var(--dim);}
+.fb-btn{
+  padding:3px 12px;border-radius:20px;border:1px solid var(--border);
+  background:transparent;font-size:12px;cursor:pointer;transition:all .2s;
+}
+.fb-btn.good:hover{background:rgba(0,255,136,.12);border-color:var(--green);}
+.fb-btn.bad:hover{background:rgba(255,77,141,.12);border-color:var(--pink);}
+
+/* thinking animation */
+.thinking-dots{display:flex;gap:5px;padding:12px 15px;background:var(--s2);border:1px solid var(--border);border-radius:10px;border-bottom-left-radius:3px;width:fit-content;}
+.thinking-dots span{width:6px;height:6px;border-radius:50%;background:var(--blue);animation:tdot 1.4s ease-in-out infinite;}
+.thinking-dots span:nth-child(2){animation-delay:.2s;}
+.thinking-dots span:nth-child(3){animation-delay:.4s;}
+@keyframes tdot{0%,80%,100%{opacity:.2;transform:scale(.7)}40%{opacity:1;transform:scale(1)}}
+
+/* ─── WELCOME ─── */
+#welcome{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:18px;padding:30px;text-align:center;
+}
+.w-logo{
+  font-family:var(--font-mono);font-size:48px;
+  background:linear-gradient(135deg,var(--blue),var(--green));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  animation:wglow 3s ease-in-out infinite;
+}
+@keyframes wglow{0%,100%{filter:drop-shadow(0 0 15px rgba(0,170,255,.4))}50%{filter:drop-shadow(0 0 30px rgba(0,255,136,.7))}}
+.w-title{font-family:var(--font-mono);font-size:18px;letter-spacing:4px;color:var(--text);}
+.w-sub{font-size:13px;color:var(--dim2);max-width:420px;line-height:1.8;}
+.w-langs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:4px 0;}
+.w-lang-badge{
+  padding:4px 11px;border-radius:20px;border:1px solid var(--border);
+  font-family:var(--font-mono);font-size:10px;color:var(--dim2);letter-spacing:.5px;
+  transition:all .2s;
+}
+.w-sugs{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;max-width:540px;}
+.w-sug{
+  padding:7px 14px;border-radius:20px;border:1px solid var(--border);
+  background:var(--s2);color:var(--dim2);font-size:12px;cursor:pointer;transition:all .2s;
+}
+.w-sug:hover{border-color:var(--blue);color:var(--blue);background:rgba(0,170,255,.06);}
+
+/* ─── INPUT ─── */
+.input-area{
+  padding:14px 18px;border-top:1px solid var(--border);
+  background:rgba(8,11,20,.95);flex-shrink:0;
+}
+.input-box{
+  display:flex;gap:10px;align-items:flex-end;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:10px;padding:10px 14px;transition:border .2s;
+}
+.input-box:focus-within{border-color:var(--blue);}
+#user-input{
+  flex:1;background:none;border:none;outline:none;
+  color:var(--text);font-family:var(--font-sans);font-size:14px;
+  resize:none;max-height:130px;line-height:1.6;
+}
+#user-input::placeholder{color:var(--dim);}
+#send-btn{
+  width:36px;height:36px;border-radius:8px;border:none;
+  background:linear-gradient(135deg,var(--blue),#0066cc);
+  color:#fff;cursor:pointer;font-size:15px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s;
+}
+#send-btn:hover{transform:scale(1.07);filter:brightness(1.2);}
+#send-btn:disabled{opacity:.35;cursor:not-allowed;transform:none;filter:none;}
+.input-hint{font-size:10px;color:var(--dim);margin-top:6px;text-align:center;font-family:var(--font-mono);letter-spacing:.5px;}
+
+/* ─── MODALS ─── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,.8);backdrop-filter:blur(8px);
+  z-index:1000;align-items:center;justify-content:center;
+}
+.modal-overlay.open{display:flex;}
+@keyframes modalIn{from{transform:scale(.93);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* preview modal */
+.preview-modal-inner{
+  width:93vw;height:87vh;
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--r);display:flex;flex-direction:column;
+  overflow:hidden;animation:modalIn .2s ease;
+}
+.modal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 16px;border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.modal-title{font-family:var(--font-mono);font-size:12px;color:var(--green);}
+.modal-close{background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;transition:color .2s;line-height:1;}
+.modal-close:hover{color:var(--pink);}
+#preview-frame{flex:1;border:none;background:#fff;}
+
+/* teach modal */
+.teach-modal-inner{
+  width:480px;max-width:95vw;
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:var(--r);overflow:hidden;animation:modalIn .2s ease;
+}
+.teach-body{padding:16px;display:flex;flex-direction:column;gap:12px;}
+.teach-body label{font-size:11px;color:var(--dim);display:block;margin-bottom:4px;letter-spacing:.5px;text-transform:uppercase;}
+.teach-body input,.teach-body textarea,.teach-body select{
+  width:100%;padding:8px 12px;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:7px;color:var(--text);
+  font-family:var(--font-sans);font-size:13px;
+  outline:none;transition:border .2s;
+}
+.teach-body textarea{height:140px;resize:vertical;font-family:var(--font-mono);font-size:11px;line-height:1.6;}
+.teach-body input:focus,.teach-body textarea:focus,.teach-body select:focus{border-color:var(--blue);}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;padding:12px 16px;border-top:1px solid var(--border);}
+.m-btn{padding:8px 20px;border-radius:7px;border:none;font-size:13px;cursor:pointer;font-family:var(--font-sans);transition:all .2s;}
+.m-btn.save{background:var(--green);color:#000;font-weight:700;}
+.m-btn.save:hover{background:#00e07a;}
+.m-btn.cancel{background:var(--border);color:var(--dim2);}
+.m-btn.cancel:hover{color:var(--text);}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="logo-wrap">
+    <div class="logo">カイ AI</div>
+    <div class="logo-ver">v3.0</div>
+    <div class="logo-status"></div>
+  </div>
+  <span class="mode-badge idle" id="mode-badge">IDLE</span>
+  <div class="header-right">
+    <button class="hbtn" id="sidebar-toggle" onclick="toggleSidebar()">サイドバー</button>
+    <button class="hbtn" onclick="openTeach()">＋ 教える</button>
+    <button class="hbtn" onclick="resetSession()">🔄 リセット</button>
+  </div>
+</header>
+
+<!-- ── MAIN ── -->
+<div class="main-wrap">
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="stab-bar">
+      <button class="stab active" onclick="switchTab('tmpl',this)">テンプレ</button>
+      <button class="stab" onclick="switchTab('mem',this)">メモリ</button>
+      <button class="stab" onclick="switchTab('api',this)">API</button>
+    </div>
+    <div class="spanel active" id="spanel-tmpl"></div>
+    <div class="spanel" id="spanel-mem"></div>
+    <div class="spanel" id="spanel-api"></div>
+  </div>
+
+  <!-- CHAT -->
+  <div class="chat-container">
+    <!-- progress bar -->
+    <div id="gather-progress">
+      <div class="gp-inner">
+        <span class="gp-label" id="gp-label">GATHERING 1/5</span>
+        <div class="gp-bar"><div class="gp-fill" id="gp-fill" style="width:0%"></div></div>
+      </div>
+      <div class="gp-steps">
+        <div class="gp-step active" id="gs0"></div>
+        <div class="gp-step" id="gs1"></div>
+        <div class="gp-step" id="gs2"></div>
+        <div class="gp-step" id="gs3"></div>
+        <div class="gp-step" id="gs4"></div>
+      </div>
+    </div>
+
+    <!-- messages -->
+    <div id="chat">
+      <div id="welcome">
+        <div class="w-logo">⬡</div>
+        <div class="w-title">KAI AI SYSTEM</div>
+        <div class="w-sub">何を作りたいか話しかけると、5回のやり取りで要件を整理して最適なコードを生成します。</div>
+        <div class="w-langs">
+          <span class="w-lang-badge">HTML/CSS/JS</span>
+          <span class="w-lang-badge">Python</span>
+          <span class="w-lang-badge">TypeScript</span>
+          <span class="w-lang-badge">Rust</span>
+          <span class="w-lang-badge">C/C++/C#</span>
+          <span class="w-lang-badge">Java</span>
+          <span class="w-lang-badge">PyScript</span>
+        </div>
+        <div class="w-sugs" id="w-sugs"></div>
+      </div>
+    </div>
+
+    <!-- input -->
+    <div class="input-area">
+      <div class="input-box">
+        <textarea id="user-input" rows="1" placeholder="何を作りたいですか？ (Shift+Enterで改行)"></textarea>
+        <button id="send-btn">▶</button>
+      </div>
+      <div class="input-hint" id="input-hint">ENTER で送信 ／ SHIFT+ENTER で改行</div>
+    </div>
+  </div>
+</div>
+
+<!-- PREVIEW MODAL -->
+<div class="modal-overlay" id="preview-modal">
+  <div class="preview-modal-inner">
+    <div class="modal-header">
+      <span class="modal-title">▶ LIVE PREVIEW</span>
+      <button class="modal-close" onclick="closePreview()">✕</button>
+    </div>
+    <iframe id="preview-frame"></iframe>
+  </div>
+</div>
+
+<!-- TEACH MODAL -->
+<div class="modal-overlay" id="teach-modal">
+  <div class="teach-modal-inner">
+    <div class="modal-header">
+      <span class="modal-title">📚 新しいパターンを教える</span>
+      <button class="modal-close" onclick="closeTeach()">✕</button>
+    </div>
+    <div class="teach-body">
+      <div>
+        <label>キーワード（カンマ区切り）</label>
+        <input id="t-kw" placeholder="例: グラフ, チャート, chart, 円グラフ">
+      </div>
+      <div>
+        <label>名前</label>
+        <input id="t-name" placeholder="例: Chart.js グラフ">
+      </div>
+      <div>
+        <label>言語</label>
+        <select id="t-lang">
+          <option value="html">HTML/CSS/JS</option>
+          <option value="python">Python</option>
+          <option value="typescript">TypeScript</option>
+          <option value="javascript">JavaScript</option>
+          <option value="rust">Rust</option>
+          <option value="c">C</option>
+          <option value="cpp">C++</option>
+          <option value="csharp">C#</option>
+          <option value="java">Java</option>
+          <option value="pyscript">PyScript</option>
+        </select>
+      </div>
+      <div>
+        <label>コード</label>
+        <textarea id="t-code" placeholder="コードをここに貼り付けてください..."></textarea>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="m-btn cancel" onclick="closeTeach()">キャンセル</button>
+      <button class="m-btn save" onclick="saveTeach()">保存・学習させる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════
+const VERSION = '3.0';
+const MEM_KEY = 'kai_ai_v3_memory';
+const LANG_EXTS = {
+  html:'html', python:'py', typescript:'ts', javascript:'js',
+  rust:'rs', c:'c', cpp:'cpp', csharp:'cs', java:'java', pyscript:'html'
+};
+const LANG_LABELS = {
+  html:'HTML/CSS/JS', python:'Python', typescript:'TypeScript',
+  javascript:'JavaScript', rust:'Rust', c:'C', cpp:'C++',
+  csharp:'C#', java:'Java', pyscript:'PyScript'
+};
+const GH_LANG_MAP = {
+  html:'html', python:'python', typescript:'typescript',
+  javascript:'javascript', rust:'rust', c:'c', cpp:'c++',
+  csharp:'c#', java:'java', pyscript:'html'
+};
+
+// Gathering questions
+const GATHER_QS = [
+  p => `[1/5] 🔤 **言語の確認**\n\n「${p.topic}」ですね！使用する言語を教えてください：\n\n• **HTML/CSS/JS** — ブラウザで動くWeb UI\n• **Python** — スクリプト/データ/AI/Web\n• **TypeScript** — 型付きJS/React/Node\n• **Rust** — 高速CLI/システム\n• **C / C++ / C#** — システム/ゲーム/Desktop\n• **Java** — サーバー/Android\n• **PyScript** — PythonをHTML内で実行\n\n（言語名を入力してください）`,
+  p => `[2/5] ⚙️ **必要な機能**\n\n**${p.language}** で **${p.topic}** ですね。\n\n必要な機能を具体的に教えてください。\n例: ログイン・認証、データ保存、ファイル読み込み、グラフ表示、API連携、ユーザー入力、検索、フィルター など`,
+  p => `[3/5] 📥 **入出力・データ**\n\nどのようなデータを扱いますか？\n\n例:\n• ユーザーがテキスト入力 → 加工して表示\n• CSVファイルを読む → グラフに描画\n• フォーム入力 → バリデーション → 保存\n\n（なければ「標準的」でOK）`,
+  p => `[4/5] 🎨 **スタイル・追加条件**\n\nデザインや追加要件を教えてください。\n\n例: ダークモード、レスポンシブ対応、アニメーション、日本語UI、モバイルファースト、シンプルなど\n（なければ「なし」でOK）`,
+  p => `[5/5] ✅ **最終確認**\n\n以下の内容でコードを生成します：\n\n📌 **作るもの**: ${p.topic}\n🔤 **言語**: ${LANG_LABELS[p.language]||p.language}\n⚙️ **機能**: ${p.features||'基本機能'}\n📥 **入出力**: ${p.io||'標準'}\n🎨 **スタイル**: ${p.style||'シンプル'}\n\nGitHubから関連実装例も検索します。\n\n**「OK」「はい」「生成」などで開始！** 変更があれば教えてください。`
+];
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+const State = {
+  thinking: false,
+  sidebarOpen: true,
+  session: {
+    mode: 'idle',   // idle | gathering | done
+    round: 0,       // 0-5
+    plan: { topic:'', language:'', features:'', io:'', style:'' }
+  }
+};
+
+// ═══════════════════════════════════════════════════
+// MEMORY (localStorage)
+// ═══════════════════════════════════════════════════
+function loadMem() {
+  try { return JSON.parse(localStorage.getItem(MEM_KEY)) || {learned:[],scores:{}}; }
+  catch { return {learned:[],scores:{}}; }
+}
+function saveMem(m) { try { localStorage.setItem(MEM_KEY, JSON.stringify(m)); } catch {} }
+function addLearned(kw, name, lang, code) {
+  const m = loadMem();
+  m.learned.push({ id:'u_'+Date.now(), keywords:kw, name, language:lang, code, uses:0, added:new Date().toLocaleDateString('ja') });
+  saveMem(m); renderMemory();
+}
+function delLearned(id) { const m=loadMem(); m.learned=m.learned.filter(x=>x.id!==id); saveMem(m); renderMemory(); }
+function rateTemplate(id, pos) {
+  const m=loadMem(); if(!m.scores[id]) m.scores[id]={g:0,b:0};
+  pos ? m.scores[id].g++ : m.scores[id].b++;
+  saveMem(m);
+}
+function getScore(id) {
+  const m=loadMem(); const s=m.scores[id]; if(!s) return null;
+  const t=s.g+s.b; return t?Math.round(s.g/t*100):null;
+}
+
+// ═══════════════════════════════════════════════════
+// LANGUAGE DETECTION
+// ═══════════════════════════════════════════════════
+function detectLanguage(input) {
+  const i = input.toLowerCase();
+  if (/python|パイソン|py\b/.test(i)) return 'python';
+  if (/pyscript|pysc/.test(i)) return 'pyscript';
+  if (/typescript|タイプスクリプト|\bts\b/.test(i)) return 'typescript';
+  if (/rust|ラスト/.test(i)) return 'rust';
+  if (/c#|csharp|c シャープ|unity/.test(i)) return 'csharp';
+  if (/c\+\+|cpp|シープラ/.test(i)) return 'cpp';
+  if (/\bc\b|c言語/.test(i)) return 'c';
+  if (/java\b|ジャバ|spring/.test(i)) return 'java';
+  if (/javascript|js\b|ジェイエス/.test(i)) return 'javascript';
+  if (/html|ウェブ|web|css|ブラウザ/.test(i)) return 'html';
+  return null;
+}
+
+// ═══════════════════════════════════════════════════
+// GITHUB INTEGRATION
+// ═══════════════════════════════════════════════════
+async function searchGitHub(query, language) {
+  try {
+    const ghLang = GH_LANG_MAP[language] || '';
+    const langQ = ghLang ? `+language:${encodeURIComponent(ghLang)}` : '';
+    const q = encodeURIComponent(query.substring(0, 40));
+    const url = `https://api.github.com/search/repositories?q=${q}${langQ}&sort=stars&order=desc&per_page=4`;
+    const res = await fetch(url, {headers:{'Accept':'application/vnd.github.v3+json'}});
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.items || []).slice(0, 3).map(r => ({
+      name: r.full_name,
+      desc: r.description || '説明なし',
+      stars: r.stargazers_count,
+      url: r.html_url,
+      lang: r.language
+    }));
+  } catch { return []; }
+}
+
+// ═══════════════════════════════════════════════════
+// CODE GENERATORS
+// ═══════════════════════════════════════════════════
+
+/* ---- HTML/CSS/JS ---- */
+function genHTML(plan) {
+  const t = (plan.topic||'').toLowerCase();
+  const feat = (plan.features||'').toLowerCase();
+  const style = (plan.style||'').toLowerCase();
+  const dark = /dark|ダーク|黒/.test(style);
+  const bg = dark?'#0a0a14':'#f8fafc';
+  const fg = dark?'#e2e8f0':'#1e293b';
+  const card = dark?'#111827':'#ffffff';
+  const border = dark?'#1e293b':'#e2e8f0';
+  const acc = '#3b82f6';
+
+  if (/game|ゲーム|パズル|quiz|クイズ/.test(t)) {
+    return `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${plan.topic}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{min-height:100vh;background:${bg};color:${fg};display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Segoe UI',sans-serif;padding:20px;}
+.game-card{background:${card};border:1px solid ${border};border-radius:16px;padding:32px;max-width:480px;width:100%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.1);}
+h1{font-size:24px;margin-bottom:8px;}
+.sub{font-size:13px;color:#64748b;margin-bottom:24px;}
+.display{font-size:64px;font-weight:700;margin:20px 0;color:${acc};font-family:monospace;}
+.btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.btn{padding:12px 24px;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s;}
+.btn-main{background:${acc};color:#fff;}
+.btn-main:hover{filter:brightness(1.1);transform:translateY(-2px);}
+.btn-sec{background:#e2e8f0;color:#1e293b;}
+.btn-sec:hover{background:#cbd5e1;}
+.score{font-size:14px;color:#64748b;margin-top:16px;}
+</style></head><body>
+<div class="game-card">
+  <h1>🎮 ${plan.topic}</h1>
+  <div class="sub">${plan.features||'スタート！'}</div>
+  <div class="display" id="disp">0</div>
+  <div class="btns">
+    <button class="btn btn-main" onclick="onAction()">アクション</button>
+    <button class="btn btn-sec" onclick="resetGame()">リセット</button>
+  </div>
+  <div class="score" id="msg">ゲーム開始！</div>
+</div>
+<script>
+let score = 0, best = 0;
+function onAction() {
+  score++;
+  document.getElementById('disp').textContent = score;
+  document.getElementById('msg').textContent = 'スコア: ' + score + ' (最高: ' + best + ')';
+}
+function resetGame() {
+  if(score > best) best = score;
+  score = 0;
+  document.getElementById('disp').textContent = '0';
+  document.getElementById('msg').textContent = 'リセット！最高スコア: ' + best;
+}
+<\/script>
+</body></html>`;
+  }
+
+  if (/form|フォーム|contact|コンタクト|お問い合わせ/.test(t+feat)) {
+    return `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${plan.topic}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{min-height:100vh;background:${bg};display:flex;align-items:center;justify-content:center;padding:40px 20px;font-family:'Segoe UI',sans-serif;}
+.form-card{background:${card};border:1px solid ${border};border-radius:16px;padding:36px;max-width:480px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.08);}
+h2{font-size:22px;font-weight:700;color:${fg};margin-bottom:6px;}
+.sub{font-size:13px;color:#64748b;margin-bottom:28px;}
+.field{margin-bottom:18px;}
+label{display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:6px;letter-spacing:.5px;text-transform:uppercase;}
+input,textarea,select{width:100%;padding:11px 14px;border:2px solid ${border};border-radius:9px;background:${dark?'#1e293b':'#fff'};color:${fg};font-size:14px;outline:none;transition:border .2s;font-family:inherit;}
+input:focus,textarea:focus,select:focus{border-color:${acc};}
+textarea{height:110px;resize:vertical;}
+.err{font-size:11px;color:#ef4444;margin-top:4px;display:none;}
+.btn{width:100%;padding:13px;background:${acc};border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:all .3s;letter-spacing:.5px;}
+.btn:hover{filter:brightness(1.1);transform:translateY(-1px);}
+.success{display:none;text-align:center;padding:20px;color:#16a34a;font-weight:600;}
+</style></head><body>
+<div class="form-card">
+  <h2>📋 ${plan.topic}</h2>
+  <div class="sub">${plan.features||'必要事項をご記入ください'}</div>
+  <form id="frm" onsubmit="submit(event)">
+    <div class="field">
+      <label>お名前 *</label>
+      <input type="text" id="name" placeholder="山田 太郎" required>
+      <div class="err" id="err-name">お名前を入力してください</div>
+    </div>
+    <div class="field">
+      <label>メールアドレス *</label>
+      <input type="email" id="email" placeholder="hello@example.com" required>
+      <div class="err" id="err-email">有効なメールアドレスを入力してください</div>
+    </div>
+    <div class="field">
+      <label>件名</label>
+      <select id="subject">
+        <option>お問い合わせ</option>
+        <option>サービスについて</option>
+        <option>その他</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>メッセージ *</label>
+      <textarea id="msg" placeholder="ご用件をお聞かせください..." required></textarea>
+    </div>
+    <button class="btn" type="submit">送信する →</button>
+  </form>
+  <div class="success" id="success">✅ 送信完了！ありがとうございます。</div>
+</div>
+<script>
+function submit(e){
+  e.preventDefault();
+  const n=document.getElementById('name').value;
+  const em=document.getElementById('email').value;
+  if(!n||!em) return;
+  document.getElementById('frm').style.display='none';
+  document.getElementById('success').style.display='block';
+}
+<\/script>
+</body></html>`;
+  }
+
+  if (/dashboard|ダッシュボード|admin|管理|analytics/.test(t)) {
+    return `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${plan.topic}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',sans-serif;background:${dark?'#070910':'#f1f5f9'};color:${fg};min-height:100vh;}
+nav{padding:14px 24px;background:${card};border-bottom:1px solid ${border};display:flex;align-items:center;gap:12px;}
+.nav-logo{font-size:18px;font-weight:700;color:${acc};}
+.nav-right{margin-left:auto;display:flex;gap:10px;align-items:center;}
+.nav-avatar{width:32px;height:32px;border-radius:50%;background:${acc};display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;}
+.main{padding:24px;max-width:1200px;margin:0 auto;}
+.page-title{font-size:22px;font-weight:700;margin-bottom:4px;}
+.page-sub{font-size:13px;color:#64748b;margin-bottom:24px;}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px;}
+.stat{background:${card};border:1px solid ${border};border-radius:12px;padding:20px;}
+.stat-label{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.5px;}
+.stat-value{font-size:30px;font-weight:700;margin:8px 0 4px;color:${fg};}
+.stat-delta{font-size:12px;}
+.delta-up{color:#22c55e;} .delta-dn{color:#ef4444;}
+.grid2{display:grid;grid-template-columns:2fr 1fr;gap:16px;}
+.card{background:${card};border:1px solid ${border};border-radius:12px;padding:20px;}
+.card-title{font-size:15px;font-weight:600;margin-bottom:16px;}
+.bar-chart{display:flex;flex-direction:column;gap:10px;}
+.bar-item{display:flex;align-items:center;gap:10px;}
+.bar-lbl{font-size:12px;color:#64748b;width:60px;flex-shrink:0;}
+.bar-track{flex:1;height:10px;background:${border};border-radius:99px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,${acc},#6366f1);}
+.bar-val{font-size:12px;font-weight:600;width:40px;text-align:right;flex-shrink:0;}
+.list-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid ${border};}
+.list-item:last-child{border:none;}
+.li-icon{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.li-name{font-size:13px;font-weight:500;flex:1;}
+.li-val{font-size:13px;font-weight:600;color:${acc};}
+@media(max-width:600px){.grid2{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr}}
+</style></head><body>
+<nav>
+  <div class="nav-logo">📊 ${plan.topic}</div>
+  <div class="nav-right">
+    <span style="font-size:13px;color:#64748b">管理者</span>
+    <div class="nav-avatar">A</div>
+  </div>
+</nav>
+<div class="main">
+  <div class="page-title">ダッシュボード</div>
+  <div class="page-sub">リアルタイム状況 — ${new Date().toLocaleDateString('ja-JP')}</div>
+  <div class="stats">
+    <div class="stat"><div class="stat-label">総訪問者</div><div class="stat-value">12,483</div><div class="stat-delta delta-up">↑ 12.5% 先月比</div></div>
+    <div class="stat"><div class="stat-label">売上</div><div class="stat-value">¥248K</div><div class="stat-delta delta-up">↑ 8.1%</div></div>
+    <div class="stat"><div class="stat-label">コンバージョン</div><div class="stat-value">3.8%</div><div class="stat-delta delta-dn">↓ 0.4%</div></div>
+    <div class="stat"><div class="stat-label">アクティブユーザー</div><div class="stat-value">1,204</div><div class="stat-delta delta-up">↑ 5.2%</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-title">📈 チャンネル別流入</div>
+      <div class="bar-chart">
+        <div class="bar-item"><span class="bar-lbl">オーガニック</span><div class="bar-track"><div class="bar-fill" style="width:72%"></div></div><span class="bar-val">72%</span></div>
+        <div class="bar-item"><span class="bar-lbl">直接</span><div class="bar-track"><div class="bar-fill" style="width:55%"></div></div><span class="bar-val">55%</span></div>
+        <div class="bar-item"><span class="bar-lbl">SNS</span><div class="bar-track"><div class="bar-fill" style="width:38%"></div></div><span class="bar-val">38%</span></div>
+        <div class="bar-item"><span class="bar-lbl">メール</span><div class="bar-track"><div class="bar-fill" style="width:22%"></div></div><span class="bar-val">22%</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🔥 人気ページ</div>
+      <div class="list-item"><div class="li-icon" style="background:rgba(59,130,246,.15)">🏠</div><div class="li-name">トップページ</div><div class="li-val">4,821</div></div>
+      <div class="list-item"><div class="li-icon" style="background:rgba(16,185,129,.15)">📦</div><div class="li-name">商品一覧</div><div class="li-val">2,341</div></div>
+      <div class="list-item"><div class="li-icon" style="background:rgba(245,158,11,.15)">📝</div><div class="li-name">ブログ</div><div class="li-val">1,982</div></div>
+      <div class="list-item"><div class="li-icon" style="background:rgba(239,68,68,.15)">📞</div><div class="li-name">お問い合わせ</div><div class="li-val">891</div></div>
+    </div>
+  </div>
+</div>
+</body></html>`;
+  }
+
+  // Default: general web app
+  return `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${plan.topic}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{min-height:100vh;background:${bg};color:${fg};font-family:'Segoe UI',sans-serif;}
+header{padding:16px 24px;background:${card};border-bottom:1px solid ${border};display:flex;align-items:center;gap:12px;}
+.logo{font-size:18px;font-weight:700;color:${acc};}
+.main{max-width:800px;margin:0 auto;padding:32px 20px;}
+.hero{text-align:center;padding:48px 0 32px;}
+.hero h1{font-size:36px;font-weight:800;margin-bottom:12px;}
+.hero p{font-size:16px;color:#64748b;max-width:480px;margin:0 auto 28px;line-height:1.7;}
+.btn{display:inline-block;padding:13px 30px;background:${acc};color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:all .3s;}
+.btn:hover{filter:brightness(1.1);transform:translateY(-2px);box-shadow:0 8px 24px rgba(59,130,246,.4);}
+.features{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-top:32px;}
+.feat{background:${card};border:1px solid ${border};border-radius:12px;padding:20px;}
+.feat-icon{font-size:28px;margin-bottom:10px;}
+.feat-title{font-size:15px;font-weight:700;margin-bottom:6px;}
+.feat-desc{font-size:13px;color:#64748b;line-height:1.6;}
+</style></head><body>
+<header>
+  <span class="logo">✦ ${plan.topic}</span>
+</header>
+<div class="main">
+  <div class="hero">
+    <h1>${plan.topic}</h1>
+    <p>${plan.features||'あなたのアプリへようこそ。'}</p>
+    <button class="btn" onclick="alert('動作確認OK！')">はじめる →</button>
+  </div>
+  <div class="features">
+    <div class="feat"><div class="feat-icon">⚡</div><div class="feat-title">高速</div><div class="feat-desc">軽量で高速な動作を実現します。</div></div>
+    <div class="feat"><div class="feat-icon">🔒</div><div class="feat-title">安全</div><div class="feat-desc">セキュリティを重視した設計です。</div></div>
+    <div class="feat"><div class="feat-icon">📱</div><div class="feat-title">レスポンシブ</div><div class="feat-desc">あらゆるデバイスに対応しています。</div></div>
+  </div>
+</div>
+</body></html>`;
+}
+
+/* ---- Python ---- */
+function genPython(plan) {
+  const t = (plan.topic+plan.features).toLowerCase();
+  if (/scrape|スクレイピング|crawl|クロール/.test(t)) {
+    return `#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+${plan.topic}
+自動生成日: ${new Date().toLocaleDateString('ja')}
+"""
+
+import requests
+from bs4 import BeautifulSoup
+import csv
+import time
+from dataclasses import dataclass, fields
+from typing import List
+
+
+@dataclass
+class Item:
+    """スクレイピングで取得するデータの構造"""
+    title: str = ""
+    url: str = ""
+    description: str = ""
+
+
+class Scraper:
+    def __init__(self, base_url: str, delay: float = 1.0):
+        self.base_url = base_url
+        self.delay = delay
+        self.session = requests.Session()
+        self.session.headers.update({
+            "User-Agent": "Mozilla/5.0 (compatible; KaiScraper/1.0)"
+        })
+
+    def fetch(self, url: str) -> BeautifulSoup | None:
+        """URLを取得してBeautifulSoupオブジェクトを返す"""
+        try:
+            res = self.session.get(url, timeout=10)
+            res.raise_for_status()
+            time.sleep(self.delay)
+            return BeautifulSoup(res.content, "html.parser")
+        except requests.RequestException as e:
+            print(f"[エラー] {url}: {e}")
+            return None
+
+    def parse(self, soup: BeautifulSoup) -> List[Item]:
+        """HTMLを解析してアイテムリストを返す — 必要に応じてカスタマイズ"""
+        items = []
+        # TODO: 実際のセレクタに合わせて変更してください
+        for el in soup.select("a[href]"):
+            item = Item(
+                title=el.get_text(strip=True),
+                url=el.get("href", ""),
+                description=""
+            )
+            if item.title:
+                items.append(item)
+        return items
+
+    def save_csv(self, items: List[Item], filename: str = "output.csv"):
+        """CSVに保存する"""
+        if not items:
+            print("[警告] 保存するデータがありません")
+            return
+        fieldnames = [f.name for f in fields(Item)]
+        with open(filename, "w", newline="", encoding="utf-8-sig") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            for item in items:
+                writer.writerow(vars(item))
+        print(f"[完了] {len(items)}件を {filename} に保存しました")
+
+    def run(self) -> List[Item]:
+        """スクレイピングを実行する"""
+        print(f"スクレイピング開始: {self.base_url}")
+        soup = self.fetch(self.base_url)
+        if not soup:
+            return []
+        items = self.parse(soup)
+        print(f"取得件数: {len(items)}")
+        return items
+
+
+if __name__ == "__main__":
+    # 実際のURLに変更してください
+    TARGET_URL = "https://example.com"
+    
+    scraper = Scraper(base_url=TARGET_URL, delay=1.0)
+    results = scraper.run()
+    scraper.save_csv(results, "output.csv")
+`;
+  }
+
+  if (/flask|api|web|サーバー|server/.test(t)) {
+    return `#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+${plan.topic} - Flask REST API
+自動生成日: ${new Date().toLocaleDateString('ja')}
+起動方法: pip install flask flask-cors && python main.py
+"""
+
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from datetime import datetime
+import uuid
+
+app = Flask(__name__)
+CORS(app)  # CORS有効化
+
+# メモリ内データストア（本番ではDBを使用）
+DATA_STORE: dict = {}
+
+
+# ─── ヘルスチェック ───
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({"status": "ok", "timestamp": datetime.now().isoformat()})
+
+
+# ─── リソース一覧取得 ───
+@app.route("/api/items", methods=["GET"])
+def get_items():
+    page = int(request.args.get("page", 1))
+    limit = int(request.args.get("limit", 10))
+    items = list(DATA_STORE.values())
+    start = (page - 1) * limit
+    return jsonify({
+        "items": items[start:start+limit],
+        "total": len(items),
+        "page": page,
+        "limit": limit
+    })
+
+
+# ─── リソース作成 ───
+@app.route("/api/items", methods=["POST"])
+def create_item():
+    data = request.get_json()
+    if not data or "name" not in data:
+        return jsonify({"error": "nameフィールドが必要です"}), 400
+    
+    item_id = str(uuid.uuid4())[:8]
+    item = {
+        "id": item_id,
+        "name": data["name"],
+        "description": data.get("description", ""),
+        "created_at": datetime.now().isoformat()
+    }
+    DATA_STORE[item_id] = item
+    return jsonify(item), 201
+
+
+# ─── リソース取得 ───
+@app.route("/api/items/<item_id>", methods=["GET"])
+def get_item(item_id):
+    item = DATA_STORE.get(item_id)
+    if not item:
+        return jsonify({"error": "見つかりません"}), 404
+    return jsonify(item)
+
+
+# ─── リソース更新 ───
+@app.route("/api/items/<item_id>", methods=["PUT"])
+def update_item(item_id):
+    if item_id not in DATA_STORE:
+        return jsonify({"error": "見つかりません"}), 404
+    data = request.get_json() or {}
+    DATA_STORE[item_id].update(data)
+    DATA_STORE[item_id]["updated_at"] = datetime.now().isoformat()
+    return jsonify(DATA_STORE[item_id])
+
+
+# ─── リソース削除 ───
+@app.route("/api/items/<item_id>", methods=["DELETE"])
+def delete_item(item_id):
+    if item_id not in DATA_STORE:
+        return jsonify({"error": "見つかりません"}), 404
+    del DATA_STORE[item_id]
+    return jsonify({"message": "削除しました"}), 200
+
+
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5000)
+    print("API起動中: http://localhost:5000")
+`;
+  }
+
+  if (/gui|グラフィカル|tkinter|desktop|デスクトップ/.test(t)) {
+    return `#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+${plan.topic} - tkinter GUI アプリ
+自動生成日: ${new Date().toLocaleDateString('ja')}
+起動方法: python main.py
+"""
+
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog
+from datetime import datetime
+
+
+class App(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("${plan.topic}")
+        self.geometry("600x450")
+        self.configure(bg="#1e1e2e")
+        self.resizable(True, True)
+        
+        self._items: list = []
+        self._build_ui()
+
+    def _build_ui(self):
+        # ── スタイル ──
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        style.configure("TButton", padding=8, font=("Segoe UI", 10))
+        style.configure("TEntry", padding=6)
+
+        # ── タイトルバー ──
+        title_bar = tk.Frame(self, bg="#11111b", pady=12)
+        title_bar.pack(fill="x")
+        tk.Label(title_bar, text="  ${plan.topic}", bg="#11111b",
+                 fg="#cdd6f4", font=("Segoe UI", 14, "bold")).pack(side="left")
+
+        # ── メインフレーム ──
+        main = tk.Frame(self, bg="#1e1e2e", padx=16, pady=10)
+        main.pack(fill="both", expand=True)
+
+        # ── 入力エリア ──
+        input_frame = tk.Frame(main, bg="#1e1e2e")
+        input_frame.pack(fill="x", pady=(0, 12))
+
+        tk.Label(input_frame, text="入力:", bg="#1e1e2e",
+                 fg="#bac2de", font=("Segoe UI", 10)).pack(side="left", padx=(0, 8))
+        self.entry = ttk.Entry(input_frame, font=("Segoe UI", 11), width=40)
+        self.entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
+        self.entry.bind("<Return>", lambda e: self._add_item())
+
+        ttk.Button(input_frame, text="追加", command=self._add_item).pack(side="left")
+
+        # ── リスト ──
+        list_frame = tk.Frame(main, bg="#181825")
+        list_frame.pack(fill="both", expand=True)
+
+        scrollbar = ttk.Scrollbar(list_frame)
+        scrollbar.pack(side="right", fill="y")
+
+        self.listbox = tk.Listbox(
+            list_frame, bg="#181825", fg="#cdd6f4",
+            font=("Consolas", 11), selectbackground="#313244",
+            yscrollcommand=scrollbar.set, borderwidth=0, highlightthickness=0
+        )
+        self.listbox.pack(fill="both", expand=True, padx=2)
+        scrollbar.config(command=self.listbox.yview)
+
+        # ── ボタンバー ──
+        btn_bar = tk.Frame(main, bg="#1e1e2e", pady=10)
+        btn_bar.pack(fill="x")
+        ttk.Button(btn_bar, text="削除", command=self._delete_item).pack(side="left", padx=(0, 8))
+        ttk.Button(btn_bar, text="クリア", command=self._clear).pack(side="left", padx=(0, 8))
+        ttk.Button(btn_bar, text="保存", command=self._save).pack(side="right")
+
+        # ── ステータスバー ──
+        self.status = tk.StringVar(value="準備完了")
+        tk.Label(self, textvariable=self.status, bg="#11111b",
+                 fg="#6c7086", font=("Segoe UI", 9), anchor="w", padx=8
+                 ).pack(fill="x", side="bottom")
+
+    def _add_item(self):
+        text = self.entry.get().strip()
+        if not text:
+            return
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        entry = f"[{timestamp}] {text}"
+        self._items.append(entry)
+        self.listbox.insert("end", entry)
+        self.entry.delete(0, "end")
+        self.status.set(f"追加しました: {text}")
+
+    def _delete_item(self):
+        sel = self.listbox.curselection()
+        if not sel:
+            messagebox.showinfo("情報", "削除する項目を選択してください")
+            return
+        idx = sel[0]
+        self.listbox.delete(idx)
+        del self._items[idx]
+        self.status.set("削除しました")
+
+    def _clear(self):
+        if messagebox.askyesno("確認", "すべての項目を削除しますか？"):
+            self.listbox.delete(0, "end")
+            self._items.clear()
+            self.status.set("クリアしました")
+
+    def _save(self):
+        if not self._items:
+            messagebox.showinfo("情報", "保存するデータがありません")
+            return
+        path = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("テキストファイル", "*.txt"), ("すべて", "*.*")]
+        )
+        if path:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write("\\n".join(self._items))
+            self.status.set(f"保存しました: {path}")
+            messagebox.showinfo("完了", "ファイルを保存しました")
+
+
+if __name__ == "__main__":
+    app = App()
+    app.mainloop()
+`;
+  }
+
+  // Default Python
+  return `#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+${plan.topic}
+機能: ${plan.features||'基本機能'}
+自動生成日: ${new Date().toLocaleDateString('ja')}
+"""
+
+from typing import Optional
+import sys
+
+
+def main() -> None:
+    """メイン処理"""
+    print("=" * 50)
+    print(f"  ${plan.topic}")
+    print("=" * 50)
+    
+    # ユーザー入力
+    while True:
+        user_input = input("\\n入力 (quitで終了): ").strip()
+        if user_input.lower() in ("quit", "exit", "q"):
+            print("終了します。")
+            sys.exit(0)
+        
+        result = process(user_input)
+        print(f"結果: {result}")
+
+
+def process(text: str) -> str:
+    """
+    入力を処理して結果を返す
+    Args:
+        text: 処理する文字列
+    Returns:
+        処理結果
+    """
+    if not text:
+        return "入力が空です"
+    
+    # TODO: ここに${plan.features||'必要な処理'}を実装
+    return f"処理完了: {text} (文字数: {len(text)})"
+
+
+if __name__ == "__main__":
+    main()
+`;
+}
+
+/* ---- TypeScript ---- */
+function genTypeScript(plan) {
+  const t = (plan.topic+plan.features).toLowerCase();
+  if (/react|コンポーネント|component/.test(t)) {
+    return `// ${plan.topic} - React TypeScript Component
+// 生成日: ${new Date().toLocaleDateString('ja')}
+// 実行: npx create-react-app my-app --template typescript
+
+import React, { useState, useEffect, useCallback } from 'react';
+
+// ─── 型定義 ───
+interface Item {
+  id: string;
+  name: string;
+  value: number;
+  createdAt: Date;
+}
+
+interface ${plan.topic.replace(/[^a-zA-Z]/g,'') || 'App'}Props {
+  title?: string;
+  initialItems?: Item[];
+  onItemChange?: (items: Item[]) => void;
+}
+
+// ─── カスタムフック ───
+function useItems(initial: Item[] = []) {
+  const [items, setItems] = useState<Item[]>(initial);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const addItem = useCallback((name: string, value: number) => {
+    const newItem: Item = {
+      id: crypto.randomUUID(),
+      name,
+      value,
+      createdAt: new Date(),
+    };
+    setItems(prev => [...prev, newItem]);
+    return newItem;
+  }, []);
+
+  const removeItem = useCallback((id: string) => {
+    setItems(prev => prev.filter(item => item.id !== id));
+  }, []);
+
+  const updateItem = useCallback((id: string, updates: Partial<Item>) => {
+    setItems(prev =>
+      prev.map(item => item.id === id ? { ...item, ...updates } : item)
+    );
+  }, []);
+
+  return { items, loading, error, addItem, removeItem, updateItem };
+}
+
+// ─── メインコンポーネント ───
+const ${plan.topic.replace(/[^a-zA-Z]/g,'') || 'MainApp'}: React.FC<${plan.topic.replace(/[^a-zA-Z]/g,'') || 'App'}Props> = ({
+  title = "${plan.topic}",
+  initialItems = [],
+  onItemChange,
+}) => {
+  const { items, addItem, removeItem } = useItems(initialItems);
+  const [input, setInput] = useState('');
+
+  useEffect(() => {
+    onItemChange?.(items);
+  }, [items, onItemChange]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    addItem(input.trim(), Math.floor(Math.random() * 100));
+    setInput('');
+  };
+
+  return (
+    <div style={styles.container}>
+      <h1 style={styles.title}>{title}</h1>
+
+      <form onSubmit={handleSubmit} style={styles.form}>
+        <input
+          style={styles.input}
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          placeholder="入力してください..."
+        />
+        <button type="submit" style={styles.button}>追加</button>
+      </form>
+
+      <div style={styles.list}>
+        {items.length === 0 && (
+          <p style={styles.empty}>アイテムがありません</p>
+        )}
+        {items.map(item => (
+          <div key={item.id} style={styles.item}>
+            <span style={styles.itemName}>{item.name}</span>
+            <span style={styles.itemValue}>{item.value}</span>
+            <button
+              style={styles.deleteBtn}
+              onClick={() => removeItem(item.id)}
+            >×</button>
+          </div>
+        ))}
+      </div>
+
+      <p style={styles.count}>合計: {items.length}件</p>
+    </div>
+  );
+};
+
+// ─── スタイル ───
+const styles = {
+  container: { maxWidth: 520, margin: '0 auto', padding: 24, fontFamily: 'system-ui, sans-serif' },
+  title: { fontSize: 24, fontWeight: 800, marginBottom: 20 },
+  form: { display: 'flex', gap: 8, marginBottom: 16 },
+  input: { flex: 1, padding: '10px 14px', border: '2px solid #e2e8f0', borderRadius: 8, fontSize: 14, outline: 'none' },
+  button: { padding: '10px 20px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 },
+  list: { display: 'flex', flexDirection: 'column' as const, gap: 8 },
+  item: { display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' },
+  itemName: { flex: 1, fontSize: 14 },
+  itemValue: { fontSize: 13, fontWeight: 700, color: '#3b82f6' },
+  deleteBtn: { background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 18 },
+  count: { marginTop: 12, fontSize: 13, color: '#64748b' },
+  empty: { textAlign: 'center' as const, color: '#94a3b8', padding: 24 },
+} as const;
+
+export default ${plan.topic.replace(/[^a-zA-Z]/g,'') || 'MainApp'};
+`;
+  }
+
+  return `// ${plan.topic} - TypeScript
+// 生成日: ${new Date().toLocaleDateString('ja')}
+// 実行: npx ts-node main.ts
+
+// ─── 型定義 ───
+interface Config {
+  name: string;
+  version: string;
+  debug: boolean;
+}
+
+interface Result<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+// ─── メインクラス ───
+class ${plan.topic.replace(/[^a-zA-Z]/g,'') || 'App'} {
+  private config: Config;
+  private items: Map<string, unknown>;
+
+  constructor(config: Partial<Config> = {}) {
+    this.config = {
+      name: config.name ?? "${plan.topic}",
+      version: config.version ?? "1.0.0",
+      debug: config.debug ?? false,
+    };
+    this.items = new Map();
+  }
+
+  /**
+   * データを処理する
+   */
+  process<T>(input: T): Result<T> {
+    if (this.config.debug) {
+      console.log("[DEBUG] Processing:", input);
+    }
+
+    try {
+      // TODO: ${plan.features || '処理ロジック'}を実装
+      return { success: true, data: input };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "不明なエラー";
+      return { success: false, error: message };
+    }
+  }
+
+  get info(): string {
+    return \`\${this.config.name} v\${this.config.version}\`;
+  }
+}
+
+// ─── ユーティリティ関数 ───
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function retry<T>(
+  fn: () => Promise<T>,
+  retries: number = 3,
+  wait: number = 1000
+): Promise<T> {
+  for (let i = 0; i < retries; i++) {
+    try { return await fn(); }
+    catch (err) {
+      if (i === retries - 1) throw err;
+      await delay(wait);
+    }
+  }
+  throw new Error("リトライ上限に達しました");
+}
+
+// ─── エントリーポイント ───
+async function main(): Promise<void> {
+  const app = new ${plan.topic.replace(/[^a-zA-Z]/g,'') || 'App'}({ debug: true });
+  console.log(app.info);
+  
+  const result = app.process("テストデータ");
+  console.log("結果:", result);
+}
+
+main().catch(console.error);
+`;
+}
+
+/* ---- Rust ---- */
+function genRust(plan) {
+  return `// ${plan.topic} - Rust
+// 生成日: ${new Date().toLocaleDateString('ja')}
+// ビルド: cargo build --release && ./target/release/${plan.topic.toLowerCase().replace(/\s+/g,'_')||'app'}
+
+use std::io::{self, BufRead, Write};
+use std::collections::HashMap;
+
+/// ${plan.topic} のメイン構造体
+#[derive(Debug, Clone)]
+struct App {
+    name: String,
+    items: Vec<Item>,
+    config: Config,
+}
+
+#[derive(Debug, Clone)]
+struct Item {
+    id: u64,
+    name: String,
+    value: i64,
+}
+
+#[derive(Debug, Clone)]
+struct Config {
+    debug: bool,
+    max_items: usize,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self { debug: false, max_items: 1000 }
+    }
+}
+
+impl App {
+    fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            items: Vec::new(),
+            config: Config::default(),
+        }
+    }
+
+    fn add_item(&mut self, name: impl Into<String>, value: i64) -> Result<u64, String> {
+        if self.items.len() >= self.config.max_items {
+            return Err(format!("上限（{}件）に達しました", self.config.max_items));
+        }
+        let id = self.items.len() as u64 + 1;
+        self.items.push(Item { id, name: name.into(), value });
+        if self.config.debug { eprintln!("[DEBUG] 追加: id={}", id); }
+        Ok(id)
+    }
+
+    fn remove_item(&mut self, id: u64) -> Option<Item> {
+        if let Some(pos) = self.items.iter().position(|i| i.id == id) {
+            Some(self.items.remove(pos))
+        } else {
+            None
+        }
+    }
+
+    fn summary(&self) -> HashMap<&str, i64> {
+        let mut map = HashMap::new();
+        map.insert("count", self.items.len() as i64);
+        map.insert("sum", self.items.iter().map(|i| i.value).sum());
+        map.insert("max", self.items.iter().map(|i| i.value).max().unwrap_or(0));
+        map.insert("min", self.items.iter().map(|i| i.value).min().unwrap_or(0));
+        map
+    }
+
+    fn display(&self) {
+        println!("\\n=== {} ===", self.name);
+        if self.items.is_empty() {
+            println!("  (アイテムなし)");
+        } else {
+            for item in &self.items {
+                println!("  [{:>3}] {:<20} = {}", item.id, item.name, item.value);
+            }
+        }
+        let s = self.summary();
+        println!("─────────────────────────────");
+        println!("  合計: {} 件  合計値: {}", s["count"], s["sum"]);
+    }
+}
+
+/// コマンドライン入力ループ
+fn run_repl(app: &mut App) {
+    let stdin = io::stdin();
+    let mut stdout = io::stdout();
+
+    println!("${plan.topic} 起動中。help でコマンド一覧。");
+
+    for line in stdin.lock().lines() {
+        let line = line.expect("入力エラー");
+        let parts: Vec<&str> = line.trim().splitn(3, ' ').collect();
+
+        match parts.as_slice() {
+            ["help"] | ["h"] => {
+                println!("コマンド: add <名前> <値> | list | remove <id> | summary | quit");
+            }
+            ["add", name, val] => {
+                match val.parse::<i64>() {
+                    Ok(v) => match app.add_item(*name, v) {
+                        Ok(id) => println!("追加しました (id: {})", id),
+                        Err(e) => println!("[エラー] {}", e),
+                    },
+                    Err(_) => println!("[エラー] 数値を入力してください"),
+                }
+            }
+            ["list"] | ["ls"] => app.display(),
+            ["remove", id] | ["rm", id] => {
+                match id.parse::<u64>() {
+                    Ok(i) => match app.remove_item(i) {
+                        Some(item) => println!("削除: {}", item.name),
+                        None => println!("[エラー] id {} が見つかりません", i),
+                    },
+                    Err(_) => println!("[エラー] 有効なIDを入力してください"),
+                }
+            }
+            ["summary"] => {
+                for (k, v) in app.summary() { println!("  {}: {}", k, v); }
+            }
+            ["quit"] | ["exit"] | ["q"] => {
+                println!("終了します。");
+                break;
+            }
+            _ => println!("不明なコマンド。help で一覧表示。"),
+        }
+
+        print!("> ");
+        stdout.flush().ok();
+    }
+}
+
+fn main() {
+    let mut app = App::new("${plan.topic}");
+    app.config.debug = std::env::var("DEBUG").is_ok();
+    run_repl(&mut app);
+}
+`;
+}
+
+/* ---- C ---- */
+function genC(plan) {
+  return `/* ${plan.topic} - C言語
+ * 生成日: ${new Date().toLocaleDateString('ja')}
+ * コンパイル: gcc -Wall -O2 -o app main.c && ./app
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#define MAX_ITEMS 256
+#define NAME_LEN  64
+
+/* ─── 構造体 ─── */
+typedef struct {
+    int   id;
+    char  name[NAME_LEN];
+    double value;
+} Item;
+
+typedef struct {
+    Item   items[MAX_ITEMS];
+    int    count;
+    char   title[NAME_LEN];
+} App;
+
+/* ─── 関数プロトタイプ ─── */
+void   app_init(App *a, const char *title);
+int    app_add(App *a, const char *name, double value);
+int    app_remove(App *a, int id);
+void   app_display(const App *a);
+double app_sum(const App *a);
+void   app_save_csv(const App *a, const char *filename);
+
+/* ─── 実装 ─── */
+void app_init(App *a, const char *title) {
+    a->count = 0;
+    strncpy(a->title, title, NAME_LEN - 1);
+    a->title[NAME_LEN - 1] = '\\0';
+}
+
+int app_add(App *a, const char *name, double value) {
+    if (a->count >= MAX_ITEMS) {
+        fprintf(stderr, "[エラー] 上限に達しました\\n");
+        return -1;
+    }
+    Item *item = &a->items[a->count];
+    item->id = a->count + 1;
+    strncpy(item->name, name, NAME_LEN - 1);
+    item->name[NAME_LEN - 1] = '\\0';
+    item->value = value;
+    return a->count++;
+}
+
+int app_remove(App *a, int id) {
+    for (int i = 0; i < a->count; i++) {
+        if (a->items[i].id == id) {
+            for (int j = i; j < a->count - 1; j++) {
+                a->items[j] = a->items[j + 1];
+            }
+            a->count--;
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void app_display(const App *a) {
+    printf("\\n=== %s (%d件) ===\\n", a->title, a->count);
+    for (int i = 0; i < a->count; i++) {
+        printf("  [%3d] %-20s = %.2f\\n",
+               a->items[i].id, a->items[i].name, a->items[i].value);
+    }
+    printf("合計: %.2f\\n", app_sum(a));
+}
+
+double app_sum(const App *a) {
+    double s = 0.0;
+    for (int i = 0; i < a->count; i++) s += a->items[i].value;
+    return s;
+}
+
+void app_save_csv(const App *a, const char *filename) {
+    FILE *fp = fopen(filename, "w");
+    if (!fp) { perror("ファイルを開けません"); return; }
+    fprintf(fp, "id,name,value\\n");
+    for (int i = 0; i < a->count; i++) {
+        fprintf(fp, "%d,%s,%.2f\\n",
+                a->items[i].id, a->items[i].name, a->items[i].value);
+    }
+    fclose(fp);
+    printf("保存完了: %s\\n", filename);
+}
+
+/* ─── メイン ─── */
+int main(void) {
+    App app;
+    app_init(&app, "${plan.topic}");
+
+    char cmd[32], name[NAME_LEN];
+    double val;
+
+    printf("${plan.topic} 起動。help でコマンド一覧。\\n> ");
+
+    while (scanf("%31s", cmd) == 1) {
+        if (strcmp(cmd, "add") == 0) {
+            scanf("%63s %lf", name, &val);
+            app_add(&app, name, val);
+        } else if (strcmp(cmd, "list") == 0) {
+            app_display(&app);
+        } else if (strcmp(cmd, "save") == 0) {
+            app_save_csv(&app, "output.csv");
+        } else if (strcmp(cmd, "help") == 0) {
+            printf("コマンド: add <名前> <値> | list | save | quit\\n");
+        } else if (strcmp(cmd, "quit") == 0 || strcmp(cmd, "q") == 0) {
+            printf("終了\\n"); break;
+        } else {
+            printf("不明なコマンド\\n");
+        }
+        printf("> ");
+    }
+    return 0;
+}
+`;
+}
+
+/* ---- C++ ---- */
+function genCPP(plan) {
+  return `// ${plan.topic} - C++17
+// 生成日: ${new Date().toLocaleDateString('ja')}
+// コンパイル: g++ -std=c++17 -Wall -O2 -o app main.cpp && ./app
+
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <optional>
+#include <map>
+#include <format>
+
+// ─── 構造体・クラス ───
+struct Item {
+    int id;
+    std::string name;
+    double value;
+
+    void print() const {
+        std::cout << std::format("  [{:>3}] {:<20} = {:.2f}\\n", id, name, value);
+    }
+};
+
+class ${plan.topic.replace(/[^a-zA-Z]/g,'')||'App'} {
+public:
+    explicit ${plan.topic.replace(/[^a-zA-Z]/g,'')||'App'}(std::string title)
+        : title_(std::move(title)), next_id_(1) {}
+
+    // アイテム追加
+    int add(const std::string& name, double value) {
+        items_.push_back({next_id_++, name, value});
+        return next_id_ - 1;
+    }
+
+    // アイテム削除
+    bool remove(int id) {
+        auto it = std::find_if(items_.begin(), items_.end(),
+                               [id](const Item& i){ return i.id == id; });
+        if (it == items_.end()) return false;
+        items_.erase(it);
+        return true;
+    }
+
+    // 検索
+    std::optional<Item> find(int id) const {
+        for (const auto& item : items_) {
+            if (item.id == id) return item;
+        }
+        return std::nullopt;
+    }
+
+    // 集計
+    double sum() const {
+        double s = 0.0;
+        for (const auto& item : items_) s += item.value;
+        return s;
+    }
+
+    // 並べ替え
+    void sort_by_value(bool ascending = true) {
+        std::sort(items_.begin(), items_.end(),
+            [ascending](const Item& a, const Item& b) {
+                return ascending ? a.value < b.value : a.value > b.value;
+            });
+    }
+
+    // 表示
+    void display() const {
+        std::cout << "\\n=== " << title_ << " (" << items_.size() << "件) ===\\n";
+        for (const auto& item : items_) item.print();
+        std::cout << std::format("合計: {:.2f}\\n", sum());
+    }
+
+    [[nodiscard]] size_t size() const { return items_.size(); }
+    [[nodiscard]] const std::string& title() const { return title_; }
+
+private:
+    std::string title_;
+    std::vector<Item> items_;
+    int next_id_;
+};
+
+// ─── REPL ───
+void run(${plan.topic.replace(/[^a-zA-Z]/g,'')||'App'}& app) {
+    std::string cmd;
+    std::cout << app.title() << " 起動。help でコマンド一覧。\\n> ";
+
+    while (std::cin >> cmd) {
+        if (cmd == "add") {
+            std::string name; double val;
+            std::cin >> name >> val;
+            int id = app.add(name, val);
+            std::cout << "追加 (id: " << id << ")\\n";
+        } else if (cmd == "list" || cmd == "ls") {
+            app.display();
+        } else if (cmd == "remove" || cmd == "rm") {
+            int id; std::cin >> id;
+            std::cout << (app.remove(id) ? "削除しました" : "見つかりません") << "\\n";
+        } else if (cmd == "sort") {
+            app.sort_by_value();
+            std::cout << "値でソートしました\\n";
+        } else if (cmd == "help" || cmd == "h") {
+            std::cout << "コマンド: add <名前> <値> | list | remove <id> | sort | quit\\n";
+        } else if (cmd == "quit" || cmd == "q") {
+            std::cout << "終了\\n"; break;
+        } else {
+            std::cout << "不明なコマンド\\n";
+        }
+        std::cout << "> ";
+    }
+}
+
+int main() {
+    ${plan.topic.replace(/[^a-zA-Z]/g,'')||'App'} app("${plan.topic}");
+    run(app);
+    return 0;
+}
+`;
+}
+
+/* ---- C# ---- */
+function genCSharp(plan) {
+  return `// ${plan.topic} - C# (.NET 8)
+// 生成日: ${new Date().toLocaleDateString('ja')}
+// 実行: dotnet run
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.IO;
+using System.Text.Json;
+
+namespace ${plan.topic.replace(/[^a-zA-Z]/g,'') || 'App'};
+
+// ─── モデル ───
+public record Item(int Id, string Name, double Value, DateTime CreatedAt);
+
+// ─── リポジトリ ───
+public class ItemRepository {
+    private readonly List<Item> _items = new();
+    private int _nextId = 1;
+
+    public Item Add(string name, double value) {
+        var item = new Item(_nextId++, name, value, DateTime.Now);
+        _items.Add(item);
+        return item;
+    }
+
+    public bool Remove(int id) {
+        var item = _items.FirstOrDefault(i => i.Id == id);
+        return item is not null && _items.Remove(item);
+    }
+
+    public Item? Find(int id) => _items.FirstOrDefault(i => i.Id == id);
+
+    public IReadOnlyList<Item> GetAll() => _items.AsReadOnly();
+
+    public IEnumerable<Item> Search(string query) =>
+        _items.Where(i => i.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
+
+    public (double Sum, double Avg, double Max, double Min) Stats() {
+        if (!_items.Any()) return (0, 0, 0, 0);
+        var vals = _items.Select(i => i.Value);
+        return (vals.Sum(), vals.Average(), vals.Max(), vals.Min());
+    }
+
+    public void SaveJson(string path) {
+        var json = JsonSerializer.Serialize(_items, new JsonSerializerOptions { WriteIndented = true });
+        File.WriteAllText(path, json);
+    }
+
+    public void LoadJson(string path) {
+        if (!File.Exists(path)) return;
+        var items = JsonSerializer.Deserialize<List<Item>>(File.ReadAllText(path));
+        if (items is null) return;
+        _items.AddRange(items);
+        _nextId = _items.Count > 0 ? _items.Max(i => i.Id) + 1 : 1;
+    }
+}
+
+// ─── アプリケーション ───
+public class Application {
+    private readonly ItemRepository _repo = new();
+    private readonly string _title;
+
+    public Application(string title) => _title = title;
+
+    public void Run() {
+        Console.WriteLine($"=== {_title} ===");
+        Console.WriteLine("help でコマンド一覧");
+
+        while (true) {
+            Console.Write("\\n> ");
+            var input = Console.ReadLine()?.Trim() ?? "";
+            var parts = input.Split(' ', 3);
+
+            switch (parts[0].ToLower()) {
+                case "add" when parts.Length >= 3:
+                    if (double.TryParse(parts[2], out var val)) {
+                        var item = _repo.Add(parts[1], val);
+                        Console.WriteLine($"追加: {item.Name} = {item.Value} (id: {item.Id})");
+                    } else Console.WriteLine("数値エラー");
+                    break;
+
+                case "list": case "ls":
+                    var all = _repo.GetAll();
+                    Console.WriteLine($"\\n{_title} ({all.Count}件)");
+                    foreach (var i in all)
+                        Console.WriteLine($"  [{i.Id:D3}] {i.Name,-20} = {i.Value:F2}");
+                    var (sum, avg, max, min) = _repo.Stats();
+                    Console.WriteLine($"  合計:{sum:F2} 平均:{avg:F2} 最大:{max:F2} 最小:{min:F2}");
+                    break;
+
+                case "remove": case "rm":
+                    if (int.TryParse(parts.ElementAtOrDefault(1), out var id))
+                        Console.WriteLine(_repo.Remove(id) ? "削除しました" : "見つかりません");
+                    break;
+
+                case "search":
+                    var results = _repo.Search(parts.ElementAtOrDefault(1) ?? "");
+                    foreach (var i in results)
+                        Console.WriteLine($"  [{i.Id}] {i.Name} = {i.Value}");
+                    break;
+
+                case "save":
+                    _repo.SaveJson("data.json");
+                    Console.WriteLine("data.json に保存しました");
+                    break;
+
+                case "load":
+                    _repo.LoadJson("data.json");
+                    Console.WriteLine("読み込みました");
+                    break;
+
+                case "help":
+                    Console.WriteLine("コマンド: add <名前> <値> | list | remove <id> | search <語> | save | load | quit");
+                    break;
+
+                case "quit": case "exit": case "q":
+                    Console.WriteLine("終了します。");
+                    return;
+
+                default:
+                    Console.WriteLine("不明なコマンド。help を参照。");
+                    break;
+            }
+        }
+    }
+}
+
+// ─── エントリーポイント ───
+var app = new Application("${plan.topic}");
+app.Run();
+`;
+}
+
+/* ---- Java ---- */
+function genJava(plan) {
+  const t = (plan.topic+plan.features).toLowerCase();
+  if (/spring|api|rest|web/.test(t)) {
+    return `// ${plan.topic} - Spring Boot REST API
+// 生成日: ${new Date().toLocaleDateString('ja')}
+// pom.xml に spring-boot-starter-web, spring-boot-starter-data-jpa を追加
+
+package com.example.app;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.http.*;
+import java.util.*;
+import java.time.LocalDateTime;
+
+@SpringBootApplication
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+
+// ─── モデル ───
+record Item(String id, String name, double value, LocalDateTime createdAt) {
+    static Item create(String name, double value) {
+        return new Item(UUID.randomUUID().toString().substring(0, 8),
+                        name, value, LocalDateTime.now());
+    }
+}
+
+record CreateItemRequest(String name, double value) {}
+record UpdateItemRequest(String name, Double value) {}
+
+// ─── コントローラー ───
+@RestController
+@RequestMapping("/api/items")
+@CrossOrigin
+class ItemController {
+    private final Map<String, Item> store = new LinkedHashMap<>();
+
+    @GetMapping
+    ResponseEntity<Map<String, Object>> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        var items = new ArrayList<>(store.values());
+        int start = Math.min(page * size, items.size());
+        int end   = Math.min(start + size, items.size());
+        return ResponseEntity.ok(Map.of(
+            "items", items.subList(start, end),
+            "total", items.size(),
+            "page",  page
+        ));
+    }
+
+    @PostMapping
+    ResponseEntity<Item> create(@RequestBody CreateItemRequest req) {
+        if (req.name() == null || req.name().isBlank())
+            return ResponseEntity.badRequest().build();
+        var item = Item.create(req.name(), req.value());
+        store.put(item.id(), item);
+        return ResponseEntity.status(HttpStatus.CREATED).body(item);
+    }
+
+    @GetMapping("/{id}")
+    ResponseEntity<Item> getOne(@PathVariable String id) {
+        var item = store.get(id);
+        return item != null ? ResponseEntity.ok(item) : ResponseEntity.notFound().build();
+    }
+
+    @DeleteMapping("/{id}")
+    ResponseEntity<Void> delete(@PathVariable String id) {
+        return store.remove(id) != null
+            ? ResponseEntity.noContent().build()
+            : ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/health")
+    Map<String, Object> health() {
+        return Map.of("status", "UP", "timestamp", LocalDateTime.now().toString());
+    }
+}
+`;
+  }
+
+  return `// ${plan.topic} - Java 17+
+// 生成日: ${new Date().toLocaleDateString('ja')}
+// コンパイル: javac Main.java && java Main
+
+import java.util.*;
+import java.util.stream.*;
+import java.io.*;
+import java.nio.file.*;
+
+public class Main {
+
+    // ─── モデル ───
+    record Item(int id, String name, double value) {}
+
+    // ─── リポジトリ ───
+    static class Repository {
+        private final List<Item> items = new ArrayList<>();
+        private int nextId = 1;
+
+        Item add(String name, double value) {
+            var item = new Item(nextId++, name, value);
+            items.add(item);
+            return item;
+        }
+
+        boolean remove(int id) {
+            return items.removeIf(i -> i.id() == id);
+        }
+
+        Optional<Item> find(int id) {
+            return items.stream().filter(i -> i.id() == id).findFirst();
+        }
+
+        List<Item> search(String query) {
+            return items.stream()
+                .filter(i -> i.name().toLowerCase().contains(query.toLowerCase()))
+                .collect(Collectors.toList());
+        }
+
+        DoubleSummaryStatistics stats() {
+            return items.stream().mapToDouble(Item::value).summaryStatistics();
+        }
+
+        List<Item> all() { return Collections.unmodifiableList(items); }
+
+        void saveCSV(String path) throws IOException {
+            var lines = new ArrayList<String>();
+            lines.add("id,name,value");
+            items.forEach(i -> lines.add(i.id() + "," + i.name() + "," + i.value()));
+            Files.write(Path.of(path), lines);
+        }
+    }
+
+    // ─── メイン処理 ───
+    public static void main(String[] args) {
+        var repo   = new Repository();
+        var scanner = new Scanner(System.in);
+
+        System.out.println("=== ${plan.topic} ===");
+        System.out.println("help でコマンド一覧");
+        System.out.print("\\n> ");
+
+        while (scanner.hasNextLine()) {
+            var parts = scanner.nextLine().trim().split("\\\\s+", 3);
+            switch (parts[0].toLowerCase()) {
+                case "add" -> {
+                    if (parts.length < 3) { System.out.println("使い方: add <名前> <値>"); break; }
+                    try {
+                        var item = repo.add(parts[1], Double.parseDouble(parts[2]));
+                        System.out.printf("追加: %s (id: %d)%n", item.name(), item.id());
+                    } catch (NumberFormatException e) { System.out.println("数値エラー"); }
+                }
+                case "list", "ls" -> {
+                    var all = repo.all();
+                    System.out.printf("%n${plan.topic} (%d件)%n", all.size());
+                    all.forEach(i -> System.out.printf("  [%3d] %-20s = %.2f%n", i.id(), i.name(), i.value()));
+                    var s = repo.stats();
+                    if (s.getCount() > 0)
+                        System.out.printf("  合計: %.2f  平均: %.2f%n", s.getSum(), s.getAverage());
+                }
+                case "remove", "rm" -> {
+                    if (parts.length < 2) break;
+                    try {
+                        boolean ok = repo.remove(Integer.parseInt(parts[1]));
+                        System.out.println(ok ? "削除しました" : "見つかりません");
+                    } catch (NumberFormatException e) { System.out.println("IDエラー"); }
+                }
+                case "search" -> {
+                    if (parts.length < 2) break;
+                    repo.search(parts[1]).forEach(i ->
+                        System.out.printf("  [%d] %s = %.2f%n", i.id(), i.name(), i.value()));
+                }
+                case "save" -> {
+                    try { repo.saveCSV("output.csv"); System.out.println("保存: output.csv"); }
+                    catch (IOException e) { System.out.println("保存エラー: " + e.getMessage()); }
+                }
+                case "help" ->
+                    System.out.println("コマンド: add <名前> <値> | list | remove <id> | search <語> | save | quit");
+                case "quit", "exit", "q" -> { System.out.println("終了"); return; }
+                default -> System.out.println("不明なコマンド");
+            }
+            System.out.print("\\n> ");
+        }
+    }
+}
+`;
+}
+
+/* ---- PyScript ---- */
+function genPyScript(plan) {
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${plan.topic} - PyScript</title>
+<link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+<script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',sans-serif;background:#0a0a14;color:#e2e8f0;min-height:100vh;padding:0;}
+header{padding:14px 20px;background:#111827;border-bottom:1px solid #1e293b;display:flex;align-items:center;gap:10px;}
+.logo{font-size:16px;font-weight:700;color:#4b8bbe;}
+.badge{padding:2px 8px;border-radius:4px;background:#4b8bbe22;color:#4b8bbe;border:1px solid #4b8bbe44;font-size:10px;font-family:monospace;}
+main{max-width:700px;margin:0 auto;padding:28px 20px;}
+h2{font-size:20px;font-weight:700;margin-bottom:16px;color:#e2e8f0;}
+.controls{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+input,textarea{padding:9px 12px;background:#111827;border:1px solid #1e293b;border-radius:8px;color:#e2e8f0;font-size:14px;outline:none;transition:border .2s;font-family:inherit;}
+input{flex:1;min-width:0;}
+input:focus,textarea:focus{border-color:#4b8bbe;}
+button{padding:9px 18px;background:#4b8bbe;border:none;border-radius:8px;color:#000;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap;}
+button:hover{filter:brightness(1.1);}
+#output{background:#080d18;border:1px solid #1e293b;border-radius:10px;padding:14px;min-height:120px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.7;color:#8babc8;white-space:pre-wrap;overflow-y:auto;max-height:300px;}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-top:16px;}
+.stat{background:#111827;border:1px solid #1e293b;border-radius:10px;padding:14px;text-align:center;}
+.stat-val{font-size:24px;font-weight:700;color:#4b8bbe;font-family:monospace;}
+.stat-lbl{font-size:11px;color:#475569;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;}
+</style>
+</head>
+<body>
+<header>
+  <span class="logo">🐍 ${plan.topic}</span>
+  <span class="badge">PyScript</span>
+  <span style="font-size:12px;color:#475569;margin-left:8px;">Pythonがブラウザで動きます</span>
+</header>
+<main>
+  <h2>${plan.topic}</h2>
+
+  <div class="controls">
+    <input type="text" id="inp" placeholder="入力してください...">
+    <button py-click="process_input()">実行</button>
+    <button py-click="clear_output()">クリア</button>
+  </div>
+
+  <div id="output">PyScript 読み込み中...</div>
+
+  <div class="stats" id="stats-grid">
+    <div class="stat"><div class="stat-val" id="stat-count">0</div><div class="stat-lbl">処理件数</div></div>
+    <div class="stat"><div class="stat-val" id="stat-chars">0</div><div class="stat-lbl">文字数合計</div></div>
+    <div class="stat"><div class="stat-val" id="stat-avg">0</div><div class="stat-lbl">平均文字数</div></div>
+  </div>
+</main>
+
+<py-script>
+from pyscript import document, display
+from datetime import datetime
+import json
+
+# データストア
+history = []
+stats = {"count": 0, "total_chars": 0}
+
+def update_stats():
+    """統計情報を更新する"""
+    count = stats["count"]
+    total = stats["total_chars"]
+    avg = round(total / count, 1) if count > 0 else 0
+
+    document.getElementById("stat-count").innerText = str(count)
+    document.getElementById("stat-chars").innerText = str(total)
+    document.getElementById("stat-avg").innerText = str(avg)
+
+def append_output(text: str):
+    """出力エリアにテキストを追加"""
+    out = document.getElementById("output")
+    ts = datetime.now().strftime("%H:%M:%S")
+    out.innerText += f"[{ts}] {text}\\n"
+    # 自動スクロール
+    out.scrollTop = out.scrollHeight
+
+def process_input(*args):
+    """ユーザー入力を処理する"""
+    inp = document.getElementById("inp")
+    text = inp.value.strip()
+
+    if not text:
+        append_output("⚠ 入力が空です")
+        return
+
+    # 処理ロジック
+    result = analyze_text(text)
+
+    # 統計更新
+    stats["count"] += 1
+    stats["total_chars"] += len(text)
+    update_stats()
+
+    # 履歴に追加
+    history.append({"input": text, "result": result, "time": datetime.now().isoformat()})
+
+    append_output(f"入力: {text}")
+    append_output(f"結果: {result}")
+    append_output("─" * 40)
+
+    inp.value = ""
+
+def analyze_text(text: str) -> str:
+    """
+    テキストを分析する
+    TODO: ${plan.features || '必要な処理'}を実装
+    """
+    words = text.split()
+    char_count = len(text)
+    word_count = len(words)
+    unique_chars = len(set(text))
+
+    return (
+        f"文字数:{char_count} / 単語数:{word_count} / "
+        f"ユニーク文字:{unique_chars} / "
+        f"逆順:{text[::-1][:20]}"
+    )
+
+def clear_output(*args):
+    """出力をクリアする"""
+    document.getElementById("output").innerText = ""
+    append_output("クリアしました")
+
+# 起動メッセージ
+append_output("${plan.topic} 起動しました！")
+append_output(f"Python {__import__('sys').version.split()[0]} on PyScript")
+append_output("入力欄にテキストを入力して「実行」を押してください。")
+append_output("─" * 40)
+update_stats()
+</py-script>
+</body>
+</html>`;
+}
+
+/* ---- JavaScript ---- */
+function genJavaScript(plan) {
+  return `// ${plan.topic} - JavaScript (Node.js / Browser)
+// 生成日: ${new Date().toLocaleDateString('ja')}
+
+'use strict';
+
+/**
+ * ${plan.topic}
+ * 機能: ${plan.features || '基本機能'}
+ */
+class ${plan.topic.replace(/[^a-zA-Z]/g,'') || 'App'} {
+  #items = new Map();
+  #nextId = 1;
+  #listeners = new Map();
+
+  constructor(options = {}) {
+    this.name    = options.name    ?? '${plan.topic}';
+    this.debug   = options.debug   ?? false;
+    this.maxSize = options.maxSize ?? 1000;
+  }
+
+  // ─── イベント ───
+  on(event, fn) {
+    if (!this.#listeners.has(event)) this.#listeners.set(event, []);
+    this.#listeners.get(event).push(fn);
+    return this;
+  }
+
+  #emit(event, data) {
+    (this.#listeners.get(event) || []).forEach(fn => fn(data));
+  }
+
+  // ─── CRUD ───
+  add(name, value = null) {
+    if (this.#items.size >= this.maxSize) throw new Error('上限に達しました');
+    const item = { id: this.#nextId++, name, value, createdAt: new Date() };
+    this.#items.set(item.id, item);
+    this.#emit('add', item);
+    if (this.debug) console.debug('[add]', item);
+    return item;
+  }
+
+  get(id) { return this.#items.get(id) ?? null; }
+
+  update(id, updates) {
+    const item = this.#items.get(id);
+    if (!item) return null;
+    const updated = { ...item, ...updates, updatedAt: new Date() };
+    this.#items.set(id, updated);
+    this.#emit('update', updated);
+    return updated;
+  }
+
+  delete(id) {
+    const item = this.#items.get(id);
+    if (!item) return false;
+    this.#items.delete(id);
+    this.#emit('delete', item);
+    return true;
+  }
+
+  // ─── クエリ ───
+  filter(predicate) { return [...this.#items.values()].filter(predicate); }
+
+  search(query) {
+    const q = query.toLowerCase();
+    return this.filter(i => i.name.toLowerCase().includes(q));
+  }
+
+  sortBy(key = 'id', dir = 'asc') {
+    return [...this.#items.values()].sort((a, b) =>
+      dir === 'asc' ? (a[key] > b[key] ? 1 : -1) : (a[key] < b[key] ? 1 : -1)
+    );
+  }
+
+  // ─── 集計 ───
+  stats() {
+    const vals = [...this.#items.values()].map(i => Number(i.value)).filter(Number.isFinite);
+    return {
+      count : this.#items.size,
+      sum   : vals.reduce((a, b) => a + b, 0),
+      avg   : vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0,
+      max   : vals.length ? Math.max(...vals) : null,
+      min   : vals.length ? Math.min(...vals) : null,
+    };
+  }
+
+  // ─── シリアライズ ───
+  toJSON() {
+    return { name: this.name, items: [...this.#items.values()] };
+  }
+
+  static fromJSON(json) {
+    const app = new ${plan.topic.replace(/[^a-zA-Z]/g,'') || 'App'}({ name: json.name });
+    (json.items || []).forEach(i => app.#items.set(i.id, i));
+    return app;
+  }
+
+  get size() { return this.#items.size; }
+}
+
+// ─── デモ実行 ───
+const app = new ${plan.topic.replace(/[^a-zA-Z]/g,'') || 'App'}({ debug: true });
+
+app.on('add',    item => console.log('追加:', item.name))
+   .on('update', item => console.log('更新:', item.name))
+   .on('delete', item => console.log('削除:', item.name));
+
+app.add('サンプル A', 100);
+app.add('サンプル B', 200);
+app.add('サンプル C', 150);
+
+console.log('\\n統計:', app.stats());
+console.log('検索 "B":', app.search('B'));
+
+const json = JSON.stringify(app.toJSON(), null, 2);
+console.log('\\nJSON:', json.substring(0, 200) + '...');
+
+export default ${plan.topic.replace(/[^a-zA-Z]/g,'') || 'App'};
+`;
+}
+
+// ─── MASTER GENERATOR ───
+function generateCode(plan) {
+  const lang = (plan.language || 'html').toLowerCase();
+  switch (lang) {
+    case 'python':     return { lang:'python',     code: genPython(plan) };
+    case 'typescript': return { lang:'typescript', code: genTypeScript(plan) };
+    case 'rust':       return { lang:'rust',       code: genRust(plan) };
+    case 'c':          return { lang:'c',          code: genC(plan) };
+    case 'cpp': case 'c++': return { lang:'cpp',   code: genCPP(plan) };
+    case 'csharp': case 'c#': return { lang:'csharp', code: genCSharp(plan) };
+    case 'java':       return { lang:'java',       code: genJava(plan) };
+    case 'pyscript':   return { lang:'pyscript',   code: genPyScript(plan) };
+    case 'javascript': return { lang:'javascript', code: genJavaScript(plan) };
+    default:           return { lang:'html',       code: genHTML(plan) };
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// CONVERSATION ENGINE (5-ROUND SYSTEM)
+// ═══════════════════════════════════════════════════
+function isCodeRequest(input) {
+  return /作って|作りたい|作る|作れる|書いて|欲しい|生成|create|make|build|write|program|コード|アプリ|ツール|スクリプト|プログラム/.test(input);
+}
+
+function parseLanguageFromAnswer(answer) {
+  const a = answer.toLowerCase();
+  if (/pyscript/.test(a)) return 'pyscript';
+  if (/python|py\b/.test(a)) return 'python';
+  if (/typescript|ts\b/.test(a)) return 'typescript';
+  if (/rust/.test(a)) return 'rust';
+  if (/c#|csharp|シャープ/.test(a)) return 'csharp';
+  if (/c\+\+|cpp/.test(a)) return 'cpp';
+  if (/\bc\b|c言語/.test(a)) return 'c';
+  if (/java(?!script)/.test(a)) return 'java';
+  if (/javascript|js\b/.test(a)) return 'javascript';
+  if (/html|css|web|ウェブ|ブラウザ/.test(a)) return 'html';
+  return null;
+}
+
+function isConfirmation(input) {
+  return /^(ok|OK|は[いィ]|yes|生成|開始|よし|いい[ぞよね]|それで|確認|go|GO|お願い|どうぞ)/.test(input.trim());
+}
+
+async function handleGathering(input) {
+  const s = State.session;
+
+  // Round 0: Just got the first message → detect language + ask Q1
+  if (s.round === 0) {
+    s.plan.topic = input.trim();
+    const detectedLang = detectLanguage(input);
+    if (detectedLang) {
+      s.plan.language = detectedLang;
+      s.round = 2; // skip language question
+      updateProgress(2);
+      return formatAIText(GATHER_QS[1](s.plan));
+    }
+    s.round = 1;
+    updateProgress(1);
+    return formatAIText(GATHER_QS[0](s.plan));
+  }
+
+  // Round 1: Language answer
+  if (s.round === 1) {
+    const lang = parseLanguageFromAnswer(input) || 'html';
+    s.plan.language = lang;
+    s.round = 2;
+    updateProgress(2);
+    return formatAIText(GATHER_QS[1](s.plan));
+  }
+
+  // Round 2: Features answer
+  if (s.round === 2) {
+    s.plan.features = input.trim();
+    s.round = 3;
+    updateProgress(3);
+    return formatAIText(GATHER_QS[2](s.plan));
+  }
+
+  // Round 3: I/O answer
+  if (s.round === 3) {
+    s.plan.io = input.trim();
+    s.round = 4;
+    updateProgress(4);
+    return formatAIText(GATHER_QS[3](s.plan));
+  }
+
+  // Round 4: Style answer
+  if (s.round === 4) {
+    s.plan.style = input.trim();
+    s.round = 5;
+    updateProgress(5);
+    return formatAIText(GATHER_QS[4](s.plan));
+  }
+
+  // Round 5: Confirmation → GENERATE!
+  if (s.round === 5) {
+    if (!isConfirmation(input) && input.length > 20) {
+      // Additional instruction
+      s.plan.features += ' / ' + input.trim();
+    }
+    return null; // Signal to generate
+  }
+
+  return null;
+}
+
+function updateProgress(round) {
+  const prog = document.getElementById('gather-progress');
+  const label = document.getElementById('gp-label');
+  const fill = document.getElementById('gp-fill');
+  prog.classList.add('show');
+  label.textContent = `GATHERING ${round}/5`;
+  fill.style.width = (round / 5 * 100) + '%';
+  for (let i = 0; i < 5; i++) {
+    const step = document.getElementById('gs' + i);
+    if (i < round - 1) { step.className = 'gp-step done'; }
+    else if (i === round - 1) { step.className = 'gp-step active'; }
+    else { step.className = 'gp-step'; }
+  }
+  document.getElementById('mode-badge').textContent = `GATHERING ${round}/5`;
+  document.getElementById('mode-badge').className = 'mode-badge gathering';
+}
+
+function resetProgress() {
+  document.getElementById('gather-progress').classList.remove('show');
+  document.getElementById('mode-badge').textContent = 'IDLE';
+  document.getElementById('mode-badge').className = 'mode-badge idle';
+}
+
+// ═══════════════════════════════════════════════════
+// QUICK TEMPLATE MATCHING (for single-shot requests)
+// ═══════════════════════════════════════════════════
+const QUICK_KEYWORDS = [
+  { kw:['ボタン','button','btn'], lang:'html', gen:()=>genHTML({topic:'ボタン集',features:'各種スタイル',language:'html'}) },
+  { kw:['ログイン','login','サインイン'], lang:'html', gen:()=>genHTML({topic:'ログインフォーム',features:'バリデーション付き',language:'html'}) },
+  { kw:['タイマー','timer','ストップウォッチ'], lang:'html', gen:()=>genHTML({topic:'ストップウォッチ',features:'ラップ機能付き',language:'html'}) },
+  { kw:['電卓','計算機','calculator'], lang:'html', gen:()=>genHTML({topic:'電卓',features:'四則演算',language:'html'}) },
+  { kw:['todo','タスク','やること'], lang:'html', gen:()=>genHTML({topic:'Todoアプリ',features:'追加・削除・フィルター',language:'html'}) },
+  { kw:['ダッシュボード','dashboard','管理画面'], lang:'html', gen:()=>genHTML({topic:'ダッシュボード',features:'統計・グラフ',language:'html'}) },
+];
+
+function quickMatch(input) {
+  const lower = input.toLowerCase();
+  // Check learned patterns
+  const mem = loadMem();
+  for (const p of mem.learned) {
+    if (p.keywords.some(k => lower.includes(k.toLowerCase()))) return { name:p.name, lang:p.language, code:p.code, id:p.id };
+  }
+  // Check quick templates
+  for (const t of QUICK_KEYWORDS) {
+    if (t.kw.some(k => lower.includes(k))) {
+      return { name:t.kw[0], lang:t.lang, code:t.gen(), id:t.kw[0] };
+    }
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════
+// SIMPLE RESPONSES
+// ═══════════════════════════════════════════════════
+const GREETINGS_RE = /^(こんにちは|こんにちわ|hello|hi|やあ|おはよう|どうも|はじめ)/i;
+const HELP_RE = /使い方|help|ヘルプ|できること|何ができ|機能/i;
+
+function simpleResponse(input) {
+  if (GREETINGS_RE.test(input.trim())) {
+    return 'こんにちは！何を作りますか？\n\n「Pythonのスクレイパーを作りたい」「ダッシュボード作って」などと話しかけてください。';
+  }
+  if (HELP_RE.test(input)) {
+    return `カイ AI v${VERSION} でできること：\n\n📌 **コード生成** — HTML/CSS/JS, Python, TypeScript, Rust, C/C++/C#, Java, PyScript に対応\n🧠 **5ラウンド設計** — 初回はやり取りで要件を整理して最適なコードを生成\n⚡ **クイック生成** — 「ボタン作って」「ログインフォーム」など短い指示で即生成\n🐙 **GitHub検索** — 生成前に関連実装を参照\n📚 **学習** — 「教える」ボタンで新パターンを登録\n🔌 **外部API** — \`window.KaiAI\` でプログラマティックに使用可能`;
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════
+// MAIN SEND HANDLER
+// ═══════════════════════════════════════════════════
+async function handleSend() {
+  if (State.thinking) return;
+  const inputEl = document.getElementById('user-input');
+  const text = inputEl.value.trim();
+  if (!text) return;
+
+  inputEl.value = '';
+  inputEl.style.height = 'auto';
+
+  // Remove welcome screen
+  const welcome = document.getElementById('welcome');
+  if (welcome) welcome.remove();
+
+  addUserMessage(text);
+
+  State.thinking = true;
+  document.getElementById('send-btn').disabled = true;
+
+  const thinkingEl = addThinking();
+
+  try {
+    await new Promise(r => setTimeout(r, 300 + Math.random() * 400));
+
+    // 1. Simple responses (greetings, help)
+    const simple = simpleResponse(text);
+    if (simple) { removeThinking(thinkingEl); addAIText(simple); return; }
+
+    // 2. Gathering mode active
+    if (State.session.mode === 'gathering') {
+      const reply = await handleGathering(text);
+      if (reply !== null) {
+        removeThinking(thinkingEl); addAIText(reply); return;
+      }
+      // null = proceed to generate
+      removeThinking(thinkingEl);
+      await runGeneration(thinkingEl);
+      return;
+    }
+
+    // 3. Quick match (learned + common patterns)
+    const quick = quickMatch(text);
+    if (quick) {
+      removeThinking(thinkingEl);
+      addCodeMessage(quick.name, quick.lang, quick.code, quick.id);
+      return;
+    }
+
+    // 4. Code request → start 5-round gathering
+    if (isCodeRequest(text)) {
+      State.session.mode = 'gathering';
+      State.session.round = 0;
+      State.session.plan = { topic:'', language:'', features:'', io:'', style:'' };
+      const reply = await handleGathering(text);
+      removeThinking(thinkingEl);
+      if (reply !== null) { addAIText(reply); return; }
+      await runGeneration(thinkingEl);
+      return;
+    }
+
+    // 5. Fallback
+    removeThinking(thinkingEl);
+    addAIText('うーん、よく分かりませんでした。\n\n「Pythonのスクレイパーを作りたい」「ログインフォームを作って」など、具体的に教えてください！\n「教える」ボタンから新しいパターンを登録することもできます。');
+
+  } catch (err) {
+    removeThinking(thinkingEl);
+    addAIText(`⚠ エラーが発生しました: ${err.message}`);
+  } finally {
+    State.thinking = false;
+    document.getElementById('send-btn').disabled = false;
+    document.getElementById('user-input').focus();
+  }
+}
+
+async function runGeneration(existingThinking) {
+  // Show GitHub search status
+  const statusMsg = addAIText(`⏳ **GitHubで参考実装を検索中...**\n言語: ${LANG_LABELS[State.session.plan.language] || State.session.plan.language}`);
+
+  // Search GitHub
+  const refs = await searchGitHub(State.session.plan.topic, State.session.plan.language);
+
+  // Update status message
+  if (statusMsg) statusMsg.remove();
+
+  if (refs.length > 0) {
+    addAIText(`🐙 **GitHub で ${refs.length}件 の参考実装を発見！** これらのパターンを参考にコードを生成します。`);
+    addGitHubRefs(refs);
+    await new Promise(r => setTimeout(r, 800));
+  }
+
+  // Generate code
+  const addThink = addThinking();
+  await new Promise(r => setTimeout(r, 600));
+  removeThinking(addThink);
+
+  const result = generateCode(State.session.plan);
+  const genId = 'gen_' + Date.now();
+  addCodeMessage(
+    `${State.session.plan.topic} (${LANG_LABELS[result.lang] || result.lang})`,
+    result.lang, result.code, genId
+  );
+
+  // Save to memory as a learned pattern
+  const m = loadMem();
+  const kw = State.session.plan.topic.split(/\s+/).filter(Boolean).slice(0, 5);
+  m.learned.push({
+    id: genId, keywords: kw, name: State.session.plan.topic,
+    language: result.lang, code: result.code,
+    uses: 1, added: new Date().toLocaleDateString('ja'),
+    fromGathering: true
+  });
+  saveMem(m); renderMemory();
+
+  // Reset state
+  State.session.mode = 'done';
+  resetProgress();
+  document.getElementById('mode-badge').textContent = 'READY';
+  document.getElementById('mode-badge').className = 'mode-badge ready';
+}
+
+// ═══════════════════════════════════════════════════
+// UI FUNCTIONS
+// ═══════════════════════════════════════════════════
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function formatAIText(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code style="font-family:monospace;background:rgba(255,255,255,.06);padding:2px 6px;border-radius:4px;font-size:12px">$1</code>')
+    .replace(/\n/g, '<br>');
+}
+
+function addUserMessage(text) {
+  const chat = document.getElementById('chat');
+  const msg = document.createElement('div');
+  msg.className = 'msg user';
+  msg.innerHTML = `<div class="ava">YOU</div><div class="bubble">${escHtml(text)}</div>`;
+  chat.appendChild(msg);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addAIText(text) {
+  const chat = document.getElementById('chat');
+  const msg = document.createElement('div');
+  msg.className = 'msg ai';
+  msg.innerHTML = `<div class="ava">KAI</div><div class="bubble">${formatAIText(text)}</div>`;
+  chat.appendChild(msg);
+  chat.scrollTop = chat.scrollHeight;
+  return msg;
+}
+
+function addThinking() {
+  const chat = document.getElementById('chat');
+  const row = document.createElement('div');
+  row.className = 'msg ai';
+  row.innerHTML = `<div class="ava">KAI</div><div class="thinking-dots"><span></span><span></span><span></span></div>`;
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+  return row;
+}
+function removeThinking(el) { if (el && el.parentNode) el.remove(); }
+
+function addGitHubRefs(refs) {
+  const chat = document.getElementById('chat');
+  const msg = document.createElement('div');
+  msg.className = 'msg ai';
+  const inner = refs.map(r => `
+    <a class="gh-ref" href="${escHtml(r.url)}" target="_blank">
+      <span class="gh-icon">📦</span>
+      <div class="gh-info">
+        <div class="gh-name">${escHtml(r.name)}</div>
+        <div class="gh-desc">${escHtml(r.desc)}</div>
+      </div>
+      <span class="gh-stars">★ ${r.stars >= 1000 ? (r.stars/1000).toFixed(1)+'k' : r.stars}</span>
+    </a>`).join('');
+  msg.innerHTML = `<div class="ava">KAI</div><div class="bubble"><div style="font-size:13px;margin-bottom:8px;color:var(--dim2)">参考リポジトリ</div><div class="gh-refs">${inner}</div></div>`;
+  chat.appendChild(msg);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function addCodeMessage(name, lang, code, id) {
+  const chat = document.getElementById('chat');
+  const msg = document.createElement('div');
+  msg.className = 'msg ai';
+  const canPreview = lang === 'html' || lang === 'pyscript';
+  const previewBtn = canPreview ? `<button class="co-btn preview" onclick="openPreview('${id}')">▶ プレビュー</button>` : '';
+  const ext = LANG_EXTS[lang] || 'txt';
+  const shortCode = code.length > 800 ? code.substring(0, 800) + '\n...(省略)' : code;
+
+  msg.innerHTML = `
+  <div class="ava">KAI</div>
+  <div class="bubble">
+    <div style="margin-bottom:8px">✅ <strong>${escHtml(name)}</strong> を生成しました</div>
+    <div class="code-out">
+      <div class="co-header">
+        <span class="co-lang ${lang}">${escHtml(LANG_LABELS[lang]||lang)}</span>
+        <div class="co-actions">
+          <button class="co-btn" onclick="copyCode('${id}')">コピー</button>
+          ${previewBtn}
+          <button class="co-btn dl" onclick="downloadCode('${id}','${name.replace(/[^a-z0-9]/gi,'_')}','${ext}')">保存</button>
+        </div>
+      </div>
+      <pre class="code-pre" id="code_${id}" data-full="${encodeURIComponent(code)}">${escHtml(shortCode)}</pre>
+    </div>
+    <div class="fb-row">
+      <span class="fb-label">役に立ちましたか？</span>
+      <button class="fb-btn good" onclick="feedback(this,'${id}',true)">👍</button>
+      <button class="fb-btn bad"  onclick="feedback(this,'${id}',false)">👎</button>
+    </div>
+  </div>`;
+
+  chat.appendChild(msg);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// ═══════════════════════════════════════════════════
+// CODE ACTIONS
+// ═══════════════════════════════════════════════════
+function getFullCode(id) {
+  const el = document.getElementById('code_' + id);
+  return el ? decodeURIComponent(el.dataset.full || el.textContent) : '';
+}
+
+function copyCode(id) {
+  const code = getFullCode(id);
+  if (!code) return;
+  navigator.clipboard.writeText(code).then(() => {
+    // Visual feedback
+    const btns = document.querySelectorAll(`[onclick="copyCode('${id}')"]`);
+    btns.forEach(btn => {
+      const orig = btn.textContent;
+      btn.textContent = '✓ コピー済み';
+      btn.style.color = 'var(--green)';
+      setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 2000);
+    });
+  }).catch(() => alert('コピー失敗。手動でコードを選択してください。'));
+}
+
+function downloadCode(id, filename, ext) {
+  const code = getFullCode(id);
+  if (!code) return;
+  const blob = new Blob([code], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `${filename}.${ext}`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function openPreview(id) {
+  const code = getFullCode(id);
+  document.getElementById('preview-frame').srcdoc = code;
+  document.getElementById('preview-modal').classList.add('open');
+}
+function closePreview() {
+  document.getElementById('preview-modal').classList.remove('open');
+  document.getElementById('preview-frame').srcdoc = '';
+}
+
+function feedback(btn, id, positive) {
+  rateTemplate(id, positive);
+  const row = btn.closest('.fb-row');
+  row.innerHTML = positive
+    ? '<span style="color:var(--green);font-size:13px">👍 ありがとう！このパターンを優先します。</span>'
+    : '<span style="color:var(--pink);font-size:13px">👎 了解！「教える」で改善版を登録できます。</span>';
+  renderMemory();
+}
+
+// ═══════════════════════════════════════════════════
+// SESSION CONTROL
+// ═══════════════════════════════════════════════════
+function resetSession() {
+  State.session = { mode:'idle', round:0, plan:{} };
+  resetProgress();
+  addAIText('🔄 セッションをリセットしました。新しい作業を始めてください！');
+}
+
+// ═══════════════════════════════════════════════════
+// TEACH MODAL
+// ═══════════════════════════════════════════════════
+function openTeach() { document.getElementById('teach-modal').classList.add('open'); }
+function closeTeach() { document.getElementById('teach-modal').classList.remove('open'); }
+function saveTeach() {
+  const kw   = document.getElementById('t-kw').value.trim();
+  const name = document.getElementById('t-name').value.trim();
+  const lang = document.getElementById('t-lang').value;
+  const code = document.getElementById('t-code').value.trim();
+  if (!kw || !name || !code) { alert('キーワード、名前、コードは必須です'); return; }
+  const keywords = kw.split(',').map(s => s.trim()).filter(Boolean);
+  addLearned(keywords, name, lang, code);
+  closeTeach();
+  const welcome = document.getElementById('welcome');
+  if (welcome) welcome.remove();
+  addAIText(`📚 「${name}」を学習しました！\nキーワード: ${keywords.slice(0,4).join(', ')}\n言語: ${LANG_LABELS[lang]||lang}\n\n次回から「${keywords[0]}」と言えばこのコードを生成します。`);
+  ['t-kw','t-name','t-code'].forEach(id => { document.getElementById(id).value = ''; });
+}
+
+// ═══════════════════════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════════════════════
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const btn = document.getElementById('sidebar-toggle');
+  State.sidebarOpen = !State.sidebarOpen;
+  sb.classList.toggle('collapsed', !State.sidebarOpen);
+  btn.classList.toggle('active', State.sidebarOpen);
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.stab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.spanel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('spanel-' + name).classList.add('active');
+}
+
+function renderTemplates() {
+  const el = document.getElementById('spanel-tmpl');
+  const items = QUICK_KEYWORDS.map(t => {
+    const sc = getScore(t.kw[0]);
+    const star = sc !== null ? `<span style="color:var(--yellow);font-size:10px">★${sc}%</span>` : '';
+    return `<div class="tmpl-card" onclick="useTemplate('${t.kw[0]}作って')">
+      <div class="tc-name">${t.kw[0]} ${star}</div>
+      <div class="tc-lang">${LANG_LABELS[t.lang] || t.lang}</div>
+      <div class="tc-kw">${t.kw.slice(0,3).join(' / ')}</div>
+    </div>`;
+  });
+  el.innerHTML = items.join('') || '<div class="empty-state">テンプレートなし</div>';
+}
+
+function renderMemory() {
+  const el = document.getElementById('spanel-mem');
+  const m = loadMem();
+  if (m.learned.length === 0) {
+    el.innerHTML = '<div class="empty-state">まだ何も学習していません。<br>「教える」か生成後に自動で追加されます。</div>';
+    return;
+  }
+  el.innerHTML = m.learned.map(p => {
+    const sc = m.scores[p.id];
+    const scoreStr = sc ? ` 👍${sc.g}/👎${sc.b}` : '';
+    return `<div class="mem-card">
+      <div class="mc-name">${escHtml(p.name)}</div>
+      <div class="mc-kw">${p.keywords.slice(0,4).join(' / ')}</div>
+      <div class="mc-score">${LANG_LABELS[p.language]||p.language} · ${p.uses}回${scoreStr} · ${p.added}</div>
+      <button class="mc-del" onclick="delLearned('${p.id}')" title="削除">×</button>
+    </div>`;
+  }).join('');
+}
+
+function renderAPIPanel() {
+  const el = document.getElementById('spanel-api');
+  el.innerHTML = `
+<div class="api-section">
+  <div class="api-title">JavaScript API</div>
+  <div class="api-code-block">// 同一ページ内で使用
+const result = await window.KaiAI.generate({
+  topic: 'ログインフォーム',
+  language: 'html'
+});
+console.log(result.code);</div>
+  <button class="copy-api-btn" onclick="copyAPISnippet(0)">コードをコピー</button>
+</div>
+<div class="api-section">
+  <div class="api-title">iframe PostMessage API</div>
+  <div class="api-code-block">// 外部ページから iframe 経由で使用
+const iframe = document.querySelector('iframe');
+iframe.contentWindow.postMessage({
+  type: 'KAI_REQUEST',
+  action: 'generate',
+  payload: { topic: 'タイマー' },
+  id: 'req_001'
+}, '*');
+
+window.addEventListener('message', (e) => {
+  if(e.data.type === 'KAI_RESPONSE')
+    console.log(e.data.result);
+});</div>
+  <button class="copy-api-btn" onclick="copyAPISnippet(1)">コードをコピー</button>
+</div>
+<div class="api-section">
+  <div class="api-title">利用可能なメソッド</div>
+  <div class="api-note">
+    <strong style="color:var(--blue)">generate</strong>(options) → {code, language, name}<br>
+    <strong style="color:var(--blue)">learn</strong>(pattern) → {success}<br>
+    <strong style="color:var(--blue)">getTemplates</strong>() → [{id, name, keywords}]<br>
+    <strong style="color:var(--blue)">stats</strong>() → {learnedCount, scores}
+  </div>
+</div>`;
+}
+
+const API_SNIPPETS = [
+`const result = await window.KaiAI.generate({
+  topic: 'ログインフォーム',
+  language: 'html'
+});
+console.log(result.code);`,
+`const iframe = document.querySelector('iframe');
+iframe.contentWindow.postMessage({
+  type: 'KAI_REQUEST',
+  action: 'generate',
+  payload: { topic: 'タイマー' },
+  id: 'req_001'
+}, '*');
+window.addEventListener('message', (e) => {
+  if(e.data.type === 'KAI_RESPONSE')
+    console.log(e.data.result);
+});`
+];
+
+function copyAPISnippet(idx) {
+  navigator.clipboard.writeText(API_SNIPPETS[idx]).then(() => {
+    const btns = document.querySelectorAll(`[onclick="copyAPISnippet(${idx})"]`);
+    btns.forEach(b => { b.textContent='✓ コピー済み'; setTimeout(()=>b.textContent='コードをコピー', 2000); });
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// EXTERNAL API  (window.KaiAI)
+// ═══════════════════════════════════════════════════
+window.KaiAI = {
+  version: VERSION,
+
+  generate(options = {}) {
+    return new Promise((resolve) => {
+      const plan = {
+        topic:    options.topic    || 'アプリ',
+        language: options.language || 'html',
+        features: options.features || '',
+        io:       options.io       || '',
+        style:    options.style    || ''
+      };
+      const result = generateCode(plan);
+      resolve({ success:true, code:result.code, language:result.lang, name:plan.topic });
+    });
+  },
+
+  learn(pattern = {}) {
+    if (!pattern.keywords || !pattern.name || !pattern.code)
+      return { success:false, error:'keywords, name, code が必要です' };
+    addLearned(pattern.keywords, pattern.name, pattern.language || 'html', pattern.code);
+    return { success:true };
+  },
+
+  getTemplates() {
+    return QUICK_KEYWORDS.map(t => ({ id:t.kw[0], name:t.kw[0], keywords:t.kw, language:t.lang }));
+  },
+
+  stats() {
+    const m = loadMem();
+    return { learnedCount:m.learned.length, scores:m.scores };
+  },
+
+  search: searchGitHub
+};
+
+// PostMessage API
+window.addEventListener('message', async (e) => {
+  if (!e.data || e.data.type !== 'KAI_REQUEST') return;
+  const { action, payload, id: reqId } = e.data;
+  try {
+    const fn = window.KaiAI[action];
+    if (typeof fn !== 'function') throw new Error(`Unknown action: ${action}`);
+    const result = await fn(payload);
+    e.source?.postMessage({ type:'KAI_RESPONSE', id:reqId, result, success:true }, e.origin || '*');
+  } catch (err) {
+    e.source?.postMessage({ type:'KAI_RESPONSE', id:reqId, error:err.message, success:false }, e.origin || '*');
+  }
+});
+
+// ═══════════════════════════════════════════════════
+// WELCOME / SUGGESTIONS
+// ═══════════════════════════════════════════════════
+const SUGGESTIONS = [
+  'ログインフォームを作って','Pythonでスクレイパー','TypeScriptでReactコンポーネント',
+  'ダッシュボードが欲しい','Rustで CLIツール','Javaで REST API',
+  'C#でデスクトップアプリ','PyScriptで計算アプリ'
+];
+
+function useTemplate(text) {
+  document.getElementById('user-input').value = text;
+  document.getElementById('user-input').focus();
+  document.getElementById('send-btn').click();
+}
+
+function renderSuggestions() {
+  const el = document.getElementById('w-sugs');
+  if (!el) return;
+  el.innerHTML = SUGGESTIONS.map(s =>
+    `<button class="w-sug" onclick="useTemplate('${s}')">${s}</button>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// INPUT EVENTS
+// ═══════════════════════════════════════════════════
+(function initEvents() {
+  const inp = document.getElementById('user-input');
+  const btn = document.getElementById('send-btn');
+
+  // Send button click
+  btn.addEventListener('click', handleSend);
+
+  // Enter to send, Shift+Enter for newline
+  inp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  });
+
+  // Auto-resize textarea
+  inp.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 130) + 'px';
+  });
+
+  // Close modals on overlay click
+  document.getElementById('preview-modal').addEventListener('click', function(e) {
+    if (e.target === this) closePreview();
+  });
+  document.getElementById('teach-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeTeach();
+  });
+})();
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+(function init() {
+  renderSuggestions();
+  renderTemplates();
+  renderMemory();
+  renderAPIPanel();
+  document.getElementById('sidebar-toggle').classList.add('active');
+  console.log(`%cカイ AI v${VERSION} 起動完了`, 'color:#00aaff;font-weight:bold;font-size:14px');
+  console.log('%cwindow.KaiAI で外部APIとして使用できます', 'color:#00ff88');
+})();
+</script>
+</body>
+</html>
